@@ -46,6 +46,8 @@ class Runner:
             return self.run_urllib3_concurrent(body, concurrency)
         if lib == "rnet":
             return await self.run_rnet_concurrent(body, concurrency)
+        if lib == "ry":
+            return await self.run_ry_concurrent(body, concurrency)
         if lib == "niquests":
             return await self.run_niquests_concurrent(body, concurrency)
         raise ValueError(f"Unsupported comparison library: {lib}")
@@ -251,6 +253,47 @@ class Runner:
 
         res = await self.meas_concurrent_batch(post_read, len(body), concurrency)
         del client  # No close or context manager in rnet. Make sure to dispose anything now.
+        return res
+
+    async def run_ry_concurrent(self, body: bytes, concurrency: int) -> list[float]:
+        import ry
+
+        url_str = str(self.url)
+        # for fairness w/ pyreqwest which uses its `pyreqwest.Url` wrapper, use the ry.URL struct
+        _url_ob = ry.URL(url_str)
+        client = ry.Client(
+            https_only=True,
+            # TODO: next version of ry will use `tls_certs_merge` kwarg not `root_certificates`
+            root_certificates=[ry.Certificate.from_der(self.ca_cert.der)],
+            # unneeded for benchmarking:
+            brotli=False,
+            deflate=False,
+            gzip=False,
+            zstd=False,
+            # options that could affect performance but whatever:
+            pool_idle_timeout=ry.Duration(secs=10),
+            pool_max_idle_per_host=concurrency,
+        )
+        if len(body) <= self.full_consume_size_limit:
+            async def post_read() -> None:
+                response = await client.post(_url_ob, body=body)  # noqa: F821
+                assert response.status == 200
+                assert len(await response.bytes()) == len(body)
+                del response
+        else:
+            chunks = self.body_parts_chunks(body)
+
+            async def post_read() -> None:
+                response = await client.post(_url_ob, body=self.body_parts_stream(chunks))  # noqa: F821
+                assert response.status == 200
+                tot = 0
+                async for chunk in response.stream(self.stream_read_chunk_size):
+                    tot += len(chunk)
+                assert tot == len(body)
+                del response
+
+        res = await self.meas_concurrent_batch(post_read, len(body), concurrency)
+        del client
         return res
 
     async def run_niquests_concurrent(self, body: bytes, concurrency: int) -> list[float]:

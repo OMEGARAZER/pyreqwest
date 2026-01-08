@@ -24,6 +24,16 @@
     <img width="1200" alt="rnet" src="https://raw.githubusercontent.com/MarkusSintonen/pyreqwest/refs/heads/main/tests/bench/benchmark_rnet.png" />
 </p>
 
+<!-- TODO(Markus): UNCOMMENT WHEN RUN -->
+<!--
+### Compared to [ry](https://github.com/jessekrubin/ry) (async)
+
+<p align="center">
+    <img width="1200" alt="rnet" src="https://raw.githubusercontent.com/MarkusSintonen/pyreqwest/refs/heads/main/tests/bench/benchmark_ry.png" />
+</p>
+-->
+
+
 ### Compared to [niquests](https://github.com/jawah/niquests) (async)
 
 <p align="center">
