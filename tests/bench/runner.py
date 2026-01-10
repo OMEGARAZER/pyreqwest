@@ -264,9 +264,10 @@ class Runner:
         client = ry.Client(
             https_only=True,
             # NOTE: next version of ry will use `tls_certs_merge` kwarg not `root_certificates`
-            root_certificates=[ry.Certificate.from_der(self.ca_cert.der)],
+            root_certificates=[ry.Certificate.from_der(self.ca_cert.der)],  # type: ignore[attr-defined]
         )
         if len(body) <= self.full_consume_size_limit:
+
             async def post_read() -> None:
                 response = await client.post(_url_ob, body=body)  # noqa: F821
                 assert response.status == 200
