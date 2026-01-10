@@ -263,7 +263,7 @@ class Runner:
         _url_ob = ry.URL(url_str)
         client = ry.Client(
             https_only=True,
-            # TODO: next version of ry will use `tls_certs_merge` kwarg not `root_certificates`
+            # NOTE: next version of ry will use `tls_certs_merge` kwarg not `root_certificates`
             root_certificates=[ry.Certificate.from_der(self.ca_cert.der)],
         )
         if len(body) <= self.full_consume_size_limit:
@@ -271,7 +271,6 @@ class Runner:
                 response = await client.post(_url_ob, body=body)  # noqa: F821
                 assert response.status == 200
                 assert len(await response.bytes()) == len(body)
-                del response
         else:
             chunks = self.body_parts_chunks(body)
 
@@ -282,7 +281,6 @@ class Runner:
                 async for chunk in response.stream(self.stream_read_chunk_size):
                     tot += len(chunk)
                 assert tot == len(body)
-                del response
 
         res = await self.meas_concurrent_batch(post_read, len(body), concurrency)
         del client
