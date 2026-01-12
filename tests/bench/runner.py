@@ -266,6 +266,7 @@ class Runner:
             tls_certs_merge=[ry.Certificate.from_der(self.ca_cert.der)],  # type: ignore[attr-defined]
         )
         if len(body) <= self.full_consume_size_limit:
+
             async def post_read() -> None:
                 response = await client.post(_url_ob, body=body)  # noqa: F821
                 assert response.status == 200
