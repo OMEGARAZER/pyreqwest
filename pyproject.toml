@@ -80,7 +80,6 @@ default-groups = ["dev", "bench"]
 module-name = "pyreqwest._pyreqwest"
 python-source = "python"
 python-packages = ["pyreqwest"]
-features = ["pyo3/extension-module"]
 
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
