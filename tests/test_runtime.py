@@ -7,7 +7,7 @@ import pytest
 from tests.servers.server_subprocess import SubprocessServer
 
 
-def config_test_isolated(queue: Queue[str | BaseException], url: str, set_default: bool) -> None:
+def config_test_isolated(queue: Queue, url: str, set_default: bool) -> None:  # type: ignore[type-arg]
     try:
         from pyreqwest.client import SyncClientBuilder
         from pyreqwest.runtime import (
@@ -60,8 +60,8 @@ def config_test_isolated(queue: Queue[str | BaseException], url: str, set_defaul
 
 
 @pytest.mark.parametrize("set_default", [False, True])
-def test_config_isolated(echo_server: SubprocessServer, set_default: bool) -> None:
-    queue: Queue[str | BaseException] = Queue()
+def test_runtime_config(echo_server: SubprocessServer, set_default: bool) -> None:
+    queue = Queue()  # type: ignore[var-annotated]
     process = multiprocessing.Process(target=config_test_isolated, args=(queue, str(echo_server.url), set_default))
     process.start()
     process.join(timeout=20)

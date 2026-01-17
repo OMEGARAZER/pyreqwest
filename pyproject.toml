@@ -37,16 +37,16 @@ pyreqwest = "pyreqwest.pytest_plugin.internal.plugin"
 
 [dependency-groups]
 dev = [
-    "maturin==1.10.2",
+    "maturin==1.11.5",
     "pytest==9.0.2",
     "pytest-asyncio==1.3.0",
-    "granian==2.6.0",
+    "granian==2.6.1",
     "asgi-types==0.1.0",
     "trustme==1.2.1",
     "requests-toolbelt==1.0.0",
     "syrupy==5.0.0",
-    "ruff==0.14.9",
-    "mypy==1.19.0",
+    "ruff==0.14.13",
+    "mypy==1.19.1",
     "packaging==25.0",
     "pydantic==2.12.5",
     # Compatibility checks with other libraries
@@ -62,11 +62,11 @@ dev = [
     "pdoc==16.0.0",
 ]
 bench = [
-    "aiohttp==3.13.2",
-    "urllib3==2.6.2",
+    "aiohttp==3.13.3",
+    "urllib3==2.6.3",
     "rnet==2.4.2",
     "ry==0.0.78",
-    "niquests==3.16.1",
+    "niquests==3.17.0",
     "matplotlib==3.10.8",
 ]
 

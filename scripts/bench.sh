@@ -2,7 +2,7 @@
 set -euo pipefail
 
 uv sync
-uv run maturin develop --uv --release
+uv run maturin develop --uv --all-features --release
 
 libs=(
   "pyreqwest_st"

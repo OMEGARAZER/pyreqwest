@@ -8,7 +8,7 @@ It is also possible to enable multithreaded runtime globally via
 Multithreaded runtime may be beneficial if you have many concurrent requests and/or large responses to process.
 For more granular control over the runtime, you can use `pyreqwest.runtime` module to configure the runtime.
 
-See [benchmarking results](./benchmarks.md) showing also single-threaded vs multithreaded runtime performance.
+See benchmarking [results](./benchmarks.md) showing single-threaded vs multi-threaded runtime performance.
 
 ### Buffer protocol and zero-copying
 

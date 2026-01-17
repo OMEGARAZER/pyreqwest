@@ -1,12 +1,12 @@
 .PHONY: test
 test:
-	uv run maturin develop --uv
+	uv run maturin develop --uv --all-features
 	uv run pytest
 	uv run pytest tests/pytest_mock/test_plugin_external.py
 
 .PHONY: test-release
 test-release:
-	uv run maturin develop --uv --release
+	uv run maturin develop --uv --all-features --release
 	uv run pytest
 	uv run pytest tests/pytest_mock/test_plugin_external.py
 
@@ -51,15 +51,15 @@ testcov:
 
 .PHONY: docs
 docs:
-	uv run maturin develop --uv
+	uv run maturin develop --uv --all-features
 	uv run pdoc -o $(outdir) --no-show-source pyreqwest.client.types pyreqwest
 
 .PHONY: docs-browser
 docs-browser:
-	uv run maturin develop --uv
+	uv run maturin develop --uv --all-features
 	uv run pdoc --no-show-source pyreqwest.client.types pyreqwest
 
 .PHONY: profile
 profile:
-	uv run maturin develop --uv --profile profiling
+	uv run maturin develop --uv --all-features --profile profiling
 	samply record uv run python -m tests.bench.latency --lib pyreqwest
