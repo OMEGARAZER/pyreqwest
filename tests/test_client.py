@@ -10,7 +10,7 @@ import pytest
 import trustme
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
-from pyreqwest.client import BaseClient, BaseClientBuilder, Client, ClientBuilder, Runtime
+from pyreqwest.client import BaseClient, BaseClientBuilder, Client, ClientBuilder
 from pyreqwest.client.types import JsonDumpsContext, JsonLoadsContext
 from pyreqwest.exceptions import (
     BodyDecodeError,
@@ -314,30 +314,21 @@ async def test_builder_use_after_build():
     await client.close()
 
 
-@pytest.mark.parametrize(
-    "mode",
-    [
-        {},
-        {"http1": True, "http2": True},
-        {"http1": True, "http2": False},
-        {"http1": False, "http2": True},
-        {"http1": False, "http2": False},
-    ],
-)
+@pytest.mark.parametrize("http2", [None, False, True])
 @pytest.mark.parametrize("https", [True, False])
-async def test_http_version_enable(
+async def test_http2_enable(
     echo_server: SubprocessServer,
     https_echo_server: SubprocessServer,
     cert_authority: trustme.CA,
-    mode: dict[str, bool],
+    http2: bool | None,
     https: bool,
 ):
     cert_pem = cert_authority.cert_pem.bytes()
     builder = ClientBuilder().add_root_certificate_pem(cert_pem).error_for_status(True)
 
-    if mode:
-        builder = builder.http1(mode["http1"]).http2(mode["http2"])
-        version = "2" if mode["http2"] else "1.1"
+    if http2 is not None:
+        builder = builder.http2(http2)
+        version = "2" if http2 else "1.1"
     else:
         version = "1.1"
 
@@ -345,17 +336,13 @@ async def test_http_version_enable(
         url = https_echo_server.url
     else:
         url = echo_server.url
-        version = "1.1" if mode and mode["http1"] and mode["http2"] else version  # fallback to http1.1 in http
+        version = "1.1" if http2 else version  # fallback to http1.1 in http
 
-    if not mode or mode["http1"] or mode["http2"]:
-        async with builder.build() as client:
-            resp = await client.get(url).build().send()
-            data = await resp.json()
-            assert data["http_version"] == version
-            assert data["scheme"] == ("https" if https else "http")
-    else:
-        with pytest.raises(BuilderError, match="At least one of http1 or http2 must be enable"):
-            builder.build()
+    async with builder.build() as client:
+        resp = await client.get(url).build().send()
+        data = await resp.json()
+        assert data["http_version"] == version
+        assert data["scheme"] == ("https" if https else "http")
 
 
 @pytest.mark.parametrize("mode", [None, "http1_only", "http2_prior_knowledge"])
@@ -578,25 +565,16 @@ def test_bad_tls_version():
         ClientBuilder().max_tls_version("bad")  # type: ignore[arg-type]
 
 
-async def test_different_runtimes(echo_server: SubprocessServer):
-    rt1 = Runtime()
-    rt2 = Runtime()
+@pytest.mark.parametrize("client1_mt", [True, False])
+@pytest.mark.parametrize("client2_mt", [True, False])
+async def test_different_runtimes(echo_server: SubprocessServer, client1_mt: bool, client2_mt: bool):
+    client1 = ClientBuilder().runtime_multithreaded(client1_mt).error_for_status(True).build()
+    client2 = ClientBuilder().runtime_multithreaded(client2_mt).error_for_status(True).build()
 
-    client1 = ClientBuilder().runtime(rt1).error_for_status(True).build()
-    client2 = ClientBuilder().runtime(rt2).error_for_status(True).build()
-
-    await client1.get(echo_server.url).build().send()
-    await client2.get(echo_server.url).build().send()
-
-    await rt1.close()
-
-    with pytest.raises(ClientClosedError, match="Runtime was closed"):
-        await client1.get(echo_server.url).build().send()
-    await client2.get(echo_server.url).build().send()
-
-    del rt2
-    with pytest.raises(ClientClosedError, match="Runtime was closed"):
-        await client2.get(echo_server.url).build().send()
+    resp1 = await client1.get(echo_server.url).build().send()
+    assert resp1.status == 200
+    resp2 = await client2.get(echo_server.url).build().send()
+    assert resp2.status == 200
 
 
 async def test_types(echo_server: SubprocessServer) -> None:

@@ -1,8 +1,6 @@
 use crate::client::Client;
 use crate::client::client::{BaseClient, SyncClient};
 use crate::client::internal::ConnectionLimiter;
-use crate::client::runtime::Runtime;
-use crate::client::runtime::RuntimeHandle;
 use crate::cookie::{CookieStore, CookieStorePyProxy};
 use crate::exceptions::BuilderError;
 use crate::http::{HeaderMap, Url, UrlType};
@@ -10,6 +8,7 @@ use crate::internal::asyncio::is_async_callable;
 use crate::internal::json::JsonHandler;
 use crate::logging::logger::init_verbose_logging;
 use crate::proxy::ProxyBuilder;
+use crate::runtime::RuntimeHandle;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -35,7 +34,7 @@ pub struct BaseClientBuilder {
     http1_lower_case_headers: bool,
     error_for_status: bool,
     default_headers: Option<HeaderMap>,
-    runtime: Option<Py<Runtime>>,
+    runtime_multithreaded: Option<bool>,
     base_url: Option<Url>,
     connection_verbose: bool,
     http1: bool,
@@ -59,9 +58,9 @@ impl BaseClientBuilder {
         Ok(slf)
     }
 
-    fn runtime(mut slf: PyRefMut<Self>, runtime: Py<Runtime>) -> PyResult<PyRefMut<Self>> {
+    fn runtime_multithreaded(mut slf: PyRefMut<Self>, enable: bool) -> PyResult<PyRefMut<Self>> {
         slf.check_inner()?;
-        slf.runtime = Some(runtime);
+        slf.runtime_multithreaded = Some(enable);
         Ok(slf)
     }
 
@@ -182,11 +181,6 @@ impl BaseClientBuilder {
 
     fn http1_allow_spaces_after_header_name_in_responses(slf: PyRefMut<Self>, value: bool) -> PyResult<PyRefMut<Self>> {
         Self::apply(slf, false, |builder| Ok(builder.http1_allow_spaces_after_header_name_in_responses(value)))
-    }
-
-    fn http1(mut slf: PyRefMut<Self>, enable: bool) -> PyResult<PyRefMut<Self>> {
-        slf.http1 = enable;
-        Ok(slf)
     }
 
     fn http1_only(mut slf: PyRefMut<Self>) -> PyResult<PyRefMut<Self>> {
@@ -367,13 +361,12 @@ impl BaseClientBuilder {
         if let Some(json_handler) = &self.json_handler {
             json_handler.__traverse__(&visit)?;
         }
-        visit.call(&self.runtime)
+        Ok(())
     }
 
     fn __clear__(&mut self) {
         self.middlewares = None;
         self.json_handler = None;
-        self.runtime = None;
     } // :NOCOV_END
 }
 impl BaseClientBuilder {
@@ -389,12 +382,9 @@ impl BaseClientBuilder {
     }
 
     pub fn build_client_base(&mut self, py: Python) -> PyResult<BaseClient> {
-        let runtime = match self.runtime.take() {
-            Some(runtime) => runtime.try_borrow(py)?.handle().clone(),
-            None => RuntimeHandle::global_handle()?.clone(),
-        };
-
         py.detach(|| {
+            let runtime = RuntimeHandle::global_handle(self.runtime_multithreaded)?.clone();
+
             let mut inner_builder = self
                 .inner
                 .take()
@@ -408,7 +398,7 @@ impl BaseClientBuilder {
             } else if !self.http1 && self.http2 {
                 inner_builder = inner_builder.http2_prior_knowledge();
             } else {
-                return Err(BuilderError::from_causes("At least one of http1 or http2 must be enabled", vec![]));
+                return Err(BuilderError::from_msg("At least one of http1 or http2 must be enabled")); // :NOCOV
             }
 
             if !self.http1_lower_case_headers {

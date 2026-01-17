@@ -2,7 +2,13 @@
 
 `pyreqwest` uses `tokio` Rust async runtime, similar to `reqwest`. By default, the library runs on a global
 single-threaded runtime chosen for simplicity and performance, which is sufficient for most use cases.
-If needed, you can provide a dedicated `tokio` runtime via `ClientBuilder.runtime(Runtime)`.
+If needed, you can use multithreaded runtime for a client via `ClientBuilder.runtime_multithreaded(bool)`.
+It is also possible to enable multithreaded runtime globally via
+`pyreqwest.runtime.runtime_multithreaded_default(bool)`.
+Multithreaded runtime may be beneficial if you have many concurrent requests and/or large responses to process.
+For more granular control over the runtime, you can use `pyreqwest.runtime` module to configure the runtime.
+
+See [benchmarking results](./benchmarks.md) showing also single-threaded vs multithreaded runtime performance.
 
 ### Buffer protocol and zero-copying
 

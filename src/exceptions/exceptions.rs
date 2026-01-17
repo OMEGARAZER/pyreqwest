@@ -26,6 +26,11 @@ macro_rules! define_exception {
             }
 
             #[allow(unused)]
+            pub fn from_msg(message: &str) -> PyErr {
+                Self::from_causes(message, vec![])
+            }
+
+            #[allow(unused)]
             pub fn from_causes(message: &str, err_causes: Vec<&'_ (dyn Error + 'static)>) -> PyErr {
                 PyErr::new::<Self, _>((message.to_string(), details_from_causes(err_causes.into_iter())))
             }

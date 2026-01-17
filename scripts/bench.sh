@@ -5,8 +5,10 @@ uv sync
 uv run maturin develop --uv --release
 
 libs=(
-  "pyreqwest"
-  "pyreqwest_sync"
+  "pyreqwest_st"
+  "pyreqwest_mt"
+  "pyreqwest_sync_st"
+  "pyreqwest_sync_mt"
   "aiohttp"
   "urllib3"
   "httpx"

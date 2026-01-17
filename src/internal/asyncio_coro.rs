@@ -16,7 +16,7 @@ use tokio::sync::oneshot;
 
 type BytesOpt = Option<Bytes>;
 type PyObj = Py<PyAny>;
-type Extractor<T> = Box<dyn FnOnce(Bound<PyAny>) -> PyResult<T> + Send + Sync>;
+type Extractor<T> = Box<dyn FnOnce(Python, PyResult<Bound<PyAny>>) -> PyResult<T> + Send + Sync>;
 
 struct BridgeInner<T> {
     tx: Option<oneshot::Sender<PyResult<T>>>,
@@ -29,13 +29,13 @@ struct BridgeInner<T> {
 impl<T> BridgeInner<T> {
     fn new(
         tx: oneshot::Sender<PyResult<T>>,
-        extractor: impl FnOnce(Bound<PyAny>) -> PyResult<T> + Send + Sync + 'static,
+        extractor: Extractor<T>,
         coro: Bound<PyAny>,
         task_local: &TaskLocal,
     ) -> PyResult<Self> {
         Ok(Self {
             tx: Some(tx),
-            extractor: Some(Box::new(extractor)),
+            extractor: Some(extractor),
             event_loop: Some(task_local.event_loop()?.clone_ref(coro.py())),
             coro: Some(coro.unbind()),
             task: None,
@@ -79,7 +79,7 @@ impl<T> BridgeInner<T> {
                 .extractor
                 .take()
                 .ok_or_else(|| PyRuntimeError::new_err("Sender already consumed"))?;
-            task_res.and_then(extractor)
+            extractor(py, task_res)
         })();
 
         self.tx
@@ -115,7 +115,7 @@ pub trait CoroTaskInitializer<T> {
     fn new<'py>(
         tx: oneshot::Sender<PyResult<T>>,
         coro: Bound<'py, PyAny>,
-        extractor: impl FnOnce(Bound<PyAny>) -> PyResult<T> + Send + Sync + 'static,
+        extractor: Extractor<T>,
         task_local: &TaskLocal,
     ) -> PyResult<Bound<'py, Self>>
     where
@@ -165,9 +165,9 @@ impl<T, I> CoroWaiter<T, I>
 where
     I: PyClass<Frozen = True> + CoroTaskInitializer<T> + Sync,
 {
-    pub fn new<'py>(
-        coro: Bound<'py, PyAny>,
-        extractor: impl FnOnce(Bound<PyAny>) -> PyResult<T> + Send + Sync + 'static,
+    pub fn new(
+        coro: Bound<PyAny>,
+        extractor: Extractor<T>,
         task_local: &TaskLocal,
         cancel_handle: Option<CancelHandle>,
     ) -> PyResult<Self> {
@@ -225,7 +225,7 @@ macro_rules! create_asyncio_bridge {
             fn new<'py>(
                 tx: oneshot::Sender<PyResult<$res_type>>,
                 coro: Bound<'py, PyAny>,
-                extractor: impl FnOnce(Bound<PyAny>) -> PyResult<$res_type> + Send + Sync + 'static,
+                extractor: Extractor<$res_type>,
                 task_local: &TaskLocal,
             ) -> PyResult<Bound<'py, Self>> {
                 let py = coro.py();

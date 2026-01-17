@@ -1,10 +1,10 @@
 use crate::client::internal::ConnectionLimiter;
-use crate::client::runtime;
 use crate::exceptions::utils::map_send_error;
 use crate::exceptions::{ClientClosedError, PoolTimeoutError};
 use crate::logging::logger::flush_logs_no_gil;
 use crate::request::RequestData;
 use crate::response::BaseResponse;
+use crate::runtime::RuntimeHandle;
 use pyo3::coroutine::CancelHandle;
 use pyo3::prelude::*;
 use tokio::sync::OwnedSemaphorePermit;
@@ -12,14 +12,14 @@ use tokio_util::sync::CancellationToken;
 
 pub struct Spawner {
     client: reqwest::Client,
-    runtime: runtime::RuntimeHandle,
+    runtime: RuntimeHandle,
     connection_limiter: Option<ConnectionLimiter>,
     close_cancellation: CancellationToken,
 }
 impl Spawner {
     pub fn new(
         client: reqwest::Client,
-        runtime: runtime::RuntimeHandle,
+        runtime: RuntimeHandle,
         connection_limiter: Option<ConnectionLimiter>,
         close_cancellation: CancellationToken,
     ) -> Self {
@@ -68,7 +68,7 @@ impl Spawner {
 
         tokio::select! {
             res = fut => res?,
-            _ = spawner.close_cancellation.cancelled() => Err(ClientClosedError::from_causes("Client was closed", vec![]),)
+            _ = spawner.close_cancellation.cancelled() => Err(ClientClosedError::from_msg("Client was closed"),)
         }
     }
 
@@ -92,7 +92,7 @@ impl Spawner {
         let elapsed = now.elapsed();
         if let Some(req_timeout) = req_timeout {
             if elapsed >= req_timeout {
-                return Err(PoolTimeoutError::from_causes("Timeout acquiring semaphore", vec![])); // :NOCOV
+                return Err(PoolTimeoutError::from_msg("Timeout acquiring semaphore")); // :NOCOV
             } else {
                 *request.timeout_mut() = Some(req_timeout - elapsed);
             }

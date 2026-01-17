@@ -253,10 +253,7 @@ impl BaseRequestBuilder {
         let multipart = {
             let mut multipart = multipart.try_borrow_mut()?;
             if slf.is_blocking && multipart.is_async() {
-                return Err(BuilderError::from_causes(
-                    "Can not use async multipart (stream) in a blocking request",
-                    vec![],
-                ));
+                return Err(BuilderError::from_msg("Can not use async multipart (stream) in a blocking request"));
             }
             multipart.build()?
         };
@@ -350,7 +347,7 @@ impl BaseRequestBuilder {
             .map_err(|e| BuilderError::from_err("Failed to build request", &e))?;
 
         if request.body().is_some() && self.body.is_some() {
-            return Err(BuilderError::from_causes("Can not set body when multipart or form is used", vec![]));
+            return Err(BuilderError::from_msg("Can not set body when multipart or form is used"));
         }
 
         let request_data = RequestData {

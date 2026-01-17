@@ -1,6 +1,6 @@
-use crate::client::RuntimeHandle;
 use crate::client::internal::SpawnedRequestPermit;
 use crate::exceptions::utils::map_read_error;
+use crate::runtime::RuntimeHandle;
 use bytes::{BufMut, Bytes, BytesMut};
 use futures_util::FutureExt;
 use http_body_util::BodyExt;

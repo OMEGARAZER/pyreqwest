@@ -1,3 +1,4 @@
+import statistics
 from pathlib import Path
 from typing import Self
 
@@ -12,15 +13,19 @@ class Stats(BaseModel):
     concurrency: int
     timings: list[float]
 
+    @property
+    def mean(self) -> float:
+        return statistics.mean(self.timings)
+
 
 class StatsCollection(BaseModel):
     stats: list[Stats] = Field(default_factory=list)
 
-    def find(self, lib: str, body_size: int, concurrency: int) -> Stats | None:
+    def find(self, lib: str, body_size: int, concurrency: int) -> Stats:
         for stat in self.stats:
             if stat.lib == lib and stat.body_size == body_size and stat.concurrency == concurrency:
                 return stat
-        return None
+        raise RuntimeError(f"Missing stats for {lib}, size={body_size}, concurrency={concurrency}")
 
     @classmethod
     def load(cls) -> Self:
@@ -43,4 +48,4 @@ def fmt_size(size: int) -> str:
 
 
 def is_sync(lib: str) -> bool:
-    return lib in {"urllib3", "pyreqwest_sync"}
+    return lib == "urllib3" or lib.startswith("pyreqwest_sync")

@@ -1,6 +1,6 @@
-use crate::client::RuntimeHandle;
 use crate::internal::allow_threads::AllowThreads;
 use crate::response::internal::{BodyReader, DEFAULT_READ_BUFFER_LIMIT};
+use crate::runtime::RuntimeHandle;
 use bytes::Bytes;
 use pyo3::coroutine::CancelHandle;
 use pyo3::prelude::*;

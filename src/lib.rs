@@ -9,6 +9,7 @@ mod multipart;
 mod proxy;
 mod request;
 mod response;
+mod runtime;
 
 use pyo3::prelude::*;
 
@@ -33,9 +34,7 @@ mod pyreqwest {
     mod client {
         use super::*;
         #[pymodule_export]
-        use crate::client::{
-            BaseClient, BaseClientBuilder, Client, ClientBuilder, Runtime, SyncClient, SyncClientBuilder,
-        };
+        use crate::client::{BaseClient, BaseClientBuilder, Client, ClientBuilder, SyncClient, SyncClientBuilder};
         #[pymodule_init]
         fn init(module: &Bound<'_, PyModule>) -> PyResult<()> {
             register_submodule(module, "client")
@@ -174,6 +173,20 @@ mod pyreqwest {
         #[pymodule_init]
         fn init(module: &Bound<'_, PyModule>) -> PyResult<()> {
             register_submodule(module, "logging")
+        }
+    }
+
+    #[pymodule]
+    mod runtime {
+        use super::*;
+        #[pymodule_export]
+        use crate::runtime::{
+            runtime_blocking_thread_keep_alive, runtime_max_blocking_threads, runtime_multithreaded_default,
+            runtime_worker_threads,
+        };
+        #[pymodule_init]
+        fn init(module: &Bound<'_, PyModule>) -> PyResult<()> {
+            register_submodule(module, "runtime")
         }
     }
 }

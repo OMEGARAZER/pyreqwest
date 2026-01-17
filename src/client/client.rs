@@ -1,12 +1,12 @@
 use crate::client::internal::ConnectionLimiter;
 use crate::client::internal::Spawner;
-use crate::client::runtime::RuntimeHandle;
 use crate::http::{HeaderMap, Url, UrlType};
 use crate::internal::json::JsonHandler;
 use crate::internal::types::Method;
 use crate::logging::logger::flush_logs;
 use crate::middleware::NextInner;
 use crate::request::{BaseRequestBuilder, RequestBuilder, SyncRequestBuilder};
+use crate::runtime::RuntimeHandle;
 use pyo3::prelude::*;
 use pyo3::{PyTraverseError, PyVisit};
 use std::sync::Arc;

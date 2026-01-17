@@ -5,7 +5,6 @@ from pyreqwest._pyreqwest.client import (
     BaseClientBuilder,
     Client,
     ClientBuilder,
-    Runtime,
     SyncClient,
     SyncClientBuilder,
 )
@@ -17,5 +16,4 @@ __all__ = [
     "BaseClient",
     "Client",
     "SyncClient",
-    "Runtime",
 ]

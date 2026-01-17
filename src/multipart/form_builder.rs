@@ -1,6 +1,6 @@
-use crate::client::RuntimeHandle;
 use crate::internal::allow_threads::AllowThreads;
 use crate::multipart::PartBuilder;
+use crate::runtime::RuntimeHandle;
 use pyo3::coroutine::CancelHandle;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
@@ -36,7 +36,7 @@ impl FormBuilder {
         path: PathBuf,
         #[pyo3(cancel_handle)] cancel: CancelHandle,
     ) -> PyResult<Py<Self>> {
-        let fut = RuntimeHandle::global_handle()?.spawn_handled(reqwest::multipart::Part::file(path), cancel);
+        let fut = RuntimeHandle::global_handle(None)?.spawn_handled(reqwest::multipart::Part::file(path), cancel);
         let part = AllowThreads(fut).await??;
         Python::attach(|py| {
             Self::apply(slf.try_borrow_mut(py)?, |builder| Ok(builder.part(name, part)))?;
@@ -45,7 +45,8 @@ impl FormBuilder {
     }
 
     fn sync_file(slf: PyRefMut<Self>, name: String, path: PathBuf) -> PyResult<PyRefMut<Self>> {
-        let part = RuntimeHandle::global_handle()?.blocking_spawn(slf.py(), reqwest::multipart::Part::file(path))?;
+        let part =
+            RuntimeHandle::global_handle(None)?.blocking_spawn(slf.py(), reqwest::multipart::Part::file(path))?;
         Self::apply(slf, |builder| Ok(builder.part(name, part)))
     }
 

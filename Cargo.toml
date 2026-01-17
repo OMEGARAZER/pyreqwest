@@ -33,7 +33,7 @@ pythonize = "=0.27.0"
 hyper = { version = "=1.8.1", features = ["client", "http1", "http2"] }
 rustls = "=0.23.36"
 http = "=1.4.0"
-tokio = { version = "=1.49.0", features = ["rt", "time", "sync", "macros"] }
+tokio = { version = "=1.49.0", features = ["rt-multi-thread", "time", "sync", "macros"] }
 tokio-util = "=0.7.18"
 futures-util = "=0.3.31"
 serde = { version = "1.0.228", features = ["derive"] }

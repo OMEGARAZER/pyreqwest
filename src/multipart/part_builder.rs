@@ -1,8 +1,8 @@
-use crate::client::RuntimeHandle;
 use crate::http::{HeaderMap, MimeType};
 use crate::internal::allow_threads::AllowThreads;
 use crate::internal::body_stream::BodyStream;
 use crate::internal::task_local::OnceTaskLocal;
+use crate::runtime::RuntimeHandle;
 use pyo3::coroutine::CancelHandle;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
@@ -49,14 +49,14 @@ impl PartBuilder {
 
     #[staticmethod]
     async fn from_file(path: PathBuf, #[pyo3(cancel_handle)] cancel: CancelHandle) -> PyResult<Self> {
-        let fut = RuntimeHandle::global_handle()?.spawn_handled(reqwest::multipart::Part::file(path), cancel);
+        let fut = RuntimeHandle::global_handle(None)?.spawn_handled(reqwest::multipart::Part::file(path), cancel);
         let part = AllowThreads(fut).await??;
         Ok(Self::new(part, false))
     }
 
     #[staticmethod]
     fn from_sync_file(py: Python, path: PathBuf) -> PyResult<Self> {
-        let part = RuntimeHandle::global_handle()?.blocking_spawn(py, reqwest::multipart::Part::file(path))?;
+        let part = RuntimeHandle::global_handle(None)?.blocking_spawn(py, reqwest::multipart::Part::file(path))?;
         Ok(Self::new(part, false))
     }
 

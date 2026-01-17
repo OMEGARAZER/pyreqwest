@@ -103,8 +103,13 @@ class BaseClientBuilder:
     def base_url(self, url: Url | str) -> Self:
         """Set a base URL automatically prepended to relative request URLs."""
 
-    def runtime(self, runtime: "Runtime") -> Self:
-        """Use a custom runtime (advanced scenarios). Usually not needed. By default, a global runtime is used."""
+    def runtime_multithreaded(self, enable: bool) -> Self:
+        """Use multithreaded Tokio runtime for client. Default is single-threaded or as configured globally via
+        `pyreqwest.runtime` module.
+
+        Multithreaded runtime may improve performance for high concurrency workloads with complex requests.
+        See also `pyreqwest.runtime` module for configuring global multithreaded runtime behavior.
+        """
 
     def max_connections(self, max_connections: int | None) -> Self:
         """Maximum number of inflight requests. None means no limit. Default is None."""
@@ -205,9 +210,6 @@ class BaseClientBuilder:
         Newline codepoints will be transformed to spaces when parsing.
         """
 
-    def http1(self, enabled: bool) -> Self:
-        """Enable or disable HTTP/1 support. Default is true."""
-
     def http1_only(self) -> Self:
         """Only use HTTP/1. This is the default. This is consistent with reqwest opt-in http2 feature.
 
@@ -223,8 +225,7 @@ class BaseClientBuilder:
     def http2_prior_knowledge(self) -> Self:
         """Only use HTTP/2.
 
-        Same as `.http1(False).http2(True)`. When enabling, it is recommended to tune "http2_" settings for production
-        usage based on expected workloads.
+        When enabling, it is recommended to tune "http2_" settings for production usage based on expected workloads.
         """
 
     def http2_initial_stream_window_size(self, value: int | None) -> Self:
@@ -348,12 +349,3 @@ class SyncClientBuilder(BaseClientBuilder):
 
     def json_handler(self, *, loads: SyncJsonLoads | None = ..., dumps: JsonDumps | None = ...) -> Self:
         """Override JSON loads / dumps callables for this sync client."""
-
-class Runtime:
-    """Tokio runtime instance. Usually not needed, as library global runtime is used by default."""
-
-    def __init__(self) -> None:
-        """Create a tokio runtime instance. This is an advanced feature."""
-
-    async def close(self) -> None:
-        """Shutdown runtime resources. Clients using this runtime won't work anymore after closing."""

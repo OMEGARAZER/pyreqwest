@@ -1,5 +1,4 @@
 import argparse
-import statistics
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -11,14 +10,13 @@ from tests.bench.utils import StatsCollection, fmt_size, is_sync
 
 
 def create_plot(collection: StatsCollection, comparison_lib: str) -> None:
+    body_sizes = sorted({stat.body_size for stat in collection.stats if stat.lib == comparison_lib})
+    concurrency_levels = sorted({stat.concurrency for stat in collection.stats if stat.lib == comparison_lib})
     self_lib = "pyreqwest_sync" if is_sync(comparison_lib) else "pyreqwest"
-
-    body_sizes = sorted({stat.body_size for stat in collection.stats if stat.lib == self_lib})
-    concurrency_levels = sorted({stat.concurrency for stat in collection.stats if stat.lib == self_lib})
 
     fig, axes = plt.subplots(nrows=len(body_sizes), ncols=len(concurrency_levels), figsize=(18, 16))
     fig.suptitle(f"pyreqwest vs {comparison_lib}", fontsize=16, y=0.98)
-    legend_colors = {"pyreqwest": "lightblue", comparison_lib: "lightcoral"}
+    legend_colors = {"pyreqwest (st)": "lightblue", "pyreqwest (mt)": "lightblue", comparison_lib: "lightcoral"}
 
     for i, body_size in enumerate(body_sizes):
         ymax = 0.0
@@ -26,19 +24,16 @@ def create_plot(collection: StatsCollection, comparison_lib: str) -> None:
         for j, concurrency in enumerate(concurrency_levels):
             ax: Axes = axes[i][j]
 
-            self_stats = collection.find(self_lib, body_size, concurrency)
+            pyreqwest_st_stats = collection.find(f"{self_lib}_st", body_size, concurrency)
+            pyreqwest_mt_stats = collection.find(f"{self_lib}_mt", body_size, concurrency)
             comparison_stats = collection.find(comparison_lib, body_size, concurrency)
-            assert self_stats, f"Missing stats for {self_lib}, size={body_size}, concurrency={concurrency}"
-            assert comparison_stats, f"Missing stats for {comparison_lib}, size={body_size}, concurrency={concurrency}"
+            pyreqwest_mean = min(pyreqwest_st_stats.mean, pyreqwest_mt_stats.mean)
 
-            # Create box plot for this specific body size and concurrency combination
-            box_plot = ax.boxplot(
-                [self_stats.timings, comparison_stats.timings],
-                patch_artist=True,
-                showfliers=False,
-                tick_labels=["pyreqwest", comparison_lib],
-                widths=0.6,
-            )
+            stats = [pyreqwest_st_stats.timings, pyreqwest_mt_stats.timings, comparison_stats.timings]
+            means = [pyreqwest_st_stats.mean, pyreqwest_mt_stats.mean, comparison_stats.mean]
+            labels = ["pyreqwest (st)", "pyreqwest (mt)", comparison_lib]
+
+            box_plot = ax.boxplot(stats, patch_artist=True, showfliers=False, tick_labels=labels, widths=0.6)
             ymax = max(ymax, ax.get_ylim()[1])
 
             # Color the boxes
@@ -51,23 +46,15 @@ def create_plot(collection: StatsCollection, comparison_lib: str) -> None:
             ax.set_ylabel("Response Time (ms)")
             ax.grid(True, alpha=0.3)
 
-            # Calculate and add performance comparison
-            pyreqwest_median = statistics.median(self_stats.timings)
-            comparison_median = statistics.median(comparison_stats.timings)
-            speedup = comparison_median / pyreqwest_median if pyreqwest_median != 0 else 0
-
-            if speedup > 1:
-                faster_lib = "pyreqwest"
-                speedup_text = f"{((speedup - 1) * 100):.1f}% faster"
-            else:
-                faster_lib = comparison_lib
-                speedup_text = f"{((1 / speedup - 1) * 100):.1f}% faster"
+            speedup = comparison_stats.mean / pyreqwest_mean if pyreqwest_mean != 0 else 0
+            faster_lib = "pyreqwest" if speedup > 1 else comparison_lib
+            pct_diff = (speedup - 1) * 100 if speedup > 1 else (1 / speedup - 1) * 100
 
             # Add performance annotation
             ax.text(
                 0.5,
                 0.95,
-                f"{faster_lib}\n{speedup_text}",
+                f"{faster_lib}\n{pct_diff:.1f}% faster",
                 transform=ax.transAxes,
                 ha="center",
                 va="top",
@@ -76,27 +63,18 @@ def create_plot(collection: StatsCollection, comparison_lib: str) -> None:
                 fontweight="bold",
             )
 
-            # Add median time annotations
-            ax.text(
-                1,
-                pyreqwest_median,
-                f"{pyreqwest_median:.3f}ms",
-                ha="left",
-                va="center",
-                fontsize=8,
-                color="darkblue",
-                fontweight="bold",
-            )
-            ax.text(
-                2,
-                comparison_median,
-                f"{comparison_median:.3f}ms",
-                ha="right",
-                va="center",
-                fontsize=8,
-                color="darkred",
-                fontweight="bold",
-            )
+            # Add mean time annotations
+            for i_mean, mean in enumerate(means):
+                ax.text(
+                    i_mean + 1,
+                    mean,
+                    f"{mean:.3f}ms",
+                    ha="left",
+                    va="center",
+                    fontsize=8,
+                    color="darkred" if i_mean == len(means) - 1 else "darkblue",
+                    fontweight="bold",
+                )
 
         for j, _ in enumerate(concurrency_levels):
             axes[i][j].set_ylim(ymin=0, ymax=ymax * 1.01)  # Uniform y-axis per row

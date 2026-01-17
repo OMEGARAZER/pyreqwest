@@ -1,4 +1,3 @@
-use crate::client::RuntimeHandle;
 use crate::http::HeaderMap;
 use crate::internal::allow_threads::AllowThreads;
 use crate::internal::task_local::OnceTaskLocal;
@@ -6,6 +5,7 @@ use crate::internal::types::{Extensions, HeaderName, HeaderValue, JsonValue, Sta
 use crate::request::RequestBody;
 use crate::response::internal::{BodyConsumeConfig, StreamedReadConfig};
 use crate::response::{BaseResponse, Response, SyncResponse};
+use crate::runtime::RuntimeHandle;
 use bytes::Bytes;
 use http::header::CONTENT_TYPE;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
@@ -87,7 +87,7 @@ impl ResponseBuilder {
         let inner = Python::attach(|py| slf.bind(py).try_borrow_mut()?.build_inner(py, false))?;
 
         let config = BodyConsumeConfig::Streamed(StreamedReadConfig::default());
-        let runtime = RuntimeHandle::global_handle()?.clone();
+        let runtime = RuntimeHandle::global_handle(None)?.clone();
         let resp = AllowThreads(BaseResponse::initialize(inner, None, config, runtime, None, false)).await?;
 
         Python::attach(|py| Response::new_py(py, resp))
@@ -97,7 +97,7 @@ impl ResponseBuilder {
         let inner = slf.build_inner(py, true)?;
 
         let config = BodyConsumeConfig::Streamed(StreamedReadConfig::default());
-        let runtime = RuntimeHandle::global_handle()?;
+        let runtime = RuntimeHandle::global_handle(None)?;
         let resp =
             runtime.blocking_spawn(py, BaseResponse::initialize(inner, None, config, runtime.clone(), None, false))?;
 

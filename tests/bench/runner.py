@@ -34,10 +34,14 @@ class Runner:
         self.iterations = iterations
 
     async def run_lib(self, lib: str, body: bytes, concurrency: int) -> list[float]:  # noqa: PLR0911
-        if lib == "pyreqwest":
-            return await self.run_pyreqwest_concurrent(body, concurrency)
-        if lib == "pyreqwest_sync":
-            return self.run_sync_pyreqwest_concurrent(body, concurrency)
+        if lib == "pyreqwest_st":
+            return await self.run_pyreqwest_concurrent(body, concurrency, multithreaded=False)
+        if lib == "pyreqwest_mt":
+            return await self.run_pyreqwest_concurrent(body, concurrency, multithreaded=True)
+        if lib == "pyreqwest_sync_st":
+            return self.run_sync_pyreqwest_concurrent(body, concurrency, multithreaded=False)
+        if lib == "pyreqwest_sync_mt":
+            return self.run_sync_pyreqwest_concurrent(body, concurrency, multithreaded=True)
         if lib == "aiohttp":
             return await self.run_aiohttp_concurrent(body, concurrency)
         if lib == "httpx":
@@ -95,10 +99,17 @@ class Runner:
 
     async def body_parts_stream(self, chunks: list[bytes]) -> AsyncGenerator[bytes, str]:
         for part in chunks:
+            await asyncio.sleep(0)
             yield part
 
-    async def run_pyreqwest_concurrent(self, body: bytes, concurrency: int) -> list[float]:
-        async with ClientBuilder().add_root_certificate_der(self.ca_cert.der).https_only(True).build() as client:
+    async def run_pyreqwest_concurrent(self, body: bytes, concurrency: int, multithreaded: bool) -> list[float]:
+        async with (
+            ClientBuilder()
+            .add_root_certificate_der(self.ca_cert.der)
+            .runtime_multithreaded(multithreaded)
+            .https_only(True)
+            .build() as client
+        ):
             if len(body) <= self.full_consume_size_limit:
 
                 async def post_read() -> None:
@@ -122,8 +133,14 @@ class Runner:
 
             return await self.meas_concurrent_batch(post_read, len(body), concurrency)
 
-    def run_sync_pyreqwest_concurrent(self, body: bytes, concurrency: int) -> list[float]:
-        with SyncClientBuilder().add_root_certificate_der(self.ca_cert.der).https_only(True).build() as client:
+    def run_sync_pyreqwest_concurrent(self, body: bytes, concurrency: int, multithreaded: bool) -> list[float]:
+        with (
+            SyncClientBuilder()
+            .add_root_certificate_der(self.ca_cert.der)
+            .runtime_multithreaded(multithreaded)
+            .https_only(True)
+            .build() as client
+        ):
             if len(body) <= self.full_consume_size_limit:
 
                 def post_read() -> None:

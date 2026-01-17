@@ -5,7 +5,6 @@ use futures_util::{FutureExt, Stream};
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
-use pyo3::types::PyEllipsis;
 use pyo3::{PyTraverseError, PyVisit, intern};
 use pyo3_bytes::PyBytes;
 use std::pin::Pin;
@@ -104,21 +103,26 @@ impl BodyStream {
                 static ANEXT: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
                 let coro = ANEXT
                     .import(py, "builtins", "anext")?
-                    .call1((py_iter, Self::ellipsis(py)))?;
-                Ok(StreamWaiter::Async(BytesCoroWaiter::new(coro, Self::bytes_extractor, task_local, None)?))
+                    .call1((py_iter, Self::sentinel(py)?))?;
+                Ok(StreamWaiter::Async(BytesCoroWaiter::new(
+                    coro,
+                    Box::new(Self::bytes_extractor),
+                    task_local,
+                    None,
+                )?))
             } else {
                 static NEXT: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
                 let res = NEXT
                     .import(py, "builtins", "next")?
-                    .call1((py_iter, Self::ellipsis(py)))
-                    .and_then(Self::bytes_extractor);
-                Ok(StreamWaiter::Sync(Some(res)))
+                    .call1((py_iter, Self::sentinel(py)?));
+                Ok(StreamWaiter::Sync(Some(Self::bytes_extractor(py, res))))
             }
         })
     }
 
-    fn bytes_extractor(res: Bound<PyAny>) -> PyResult<Option<Bytes>> {
-        if res.is(Self::ellipsis(res.py())) {
+    fn bytes_extractor(py: Python, res: PyResult<Bound<PyAny>>) -> PyResult<Option<Bytes>> {
+        let res = res?;
+        if res.is(Self::sentinel(py)?) {
             return Ok(None); // End of stream
         }
         let py_bytes = match res.extract::<PyBytes>() {
@@ -142,9 +146,12 @@ impl BodyStream {
         }
     }
 
-    fn ellipsis(py: Python<'_>) -> &Py<PyEllipsis> {
-        static ONCE_ELLIPSIS: PyOnceLock<Py<PyEllipsis>> = PyOnceLock::new();
-        ONCE_ELLIPSIS.get_or_init(py, || PyEllipsis::get(py).into())
+    fn sentinel(py: Python<'_>) -> PyResult<&Py<PyAny>> {
+        static SENTINEL: PyOnceLock<PyResult<Py<PyAny>>> = PyOnceLock::new();
+        match SENTINEL.get_or_init(py, || Sentinel::new_py(py)) {
+            Ok(s) => Ok(s),
+            Err(e) => Err(e.clone_ref(py)),
+        }
     }
 
     pub fn try_clone(&self, py: Python) -> PyResult<Self> {
@@ -188,4 +195,12 @@ fn is_async_iter(obj: &Bound<PyAny>) -> PyResult<bool> {
 enum StreamWaiter {
     Async(BytesCoroWaiter),
     Sync(Option<PyResult<Option<Bytes>>>),
+}
+
+#[pyclass(frozen)]
+struct Sentinel;
+impl Sentinel {
+    fn new_py(py: Python) -> PyResult<Py<PyAny>> {
+        Ok(Py::new(py, Sentinel)?.into_any())
+    }
 }

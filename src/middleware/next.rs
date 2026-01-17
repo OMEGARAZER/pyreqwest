@@ -67,12 +67,12 @@ impl Next {
         let coro = middleware.bind(py).call1((request, next))?;
         ResponseCoroWaiter::new(
             coro,
-            |res| {
-                res.cast_into_exact::<Response>()?
+            Box::new(|_py, res| {
+                res?.cast_into_exact::<Response>()?
                     .into_super()
                     .try_borrow_mut()?
                     .take_inner()
-            },
+            }),
             &self.task_local,
             Some(cancel),
         )

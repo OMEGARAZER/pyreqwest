@@ -1,24 +1,30 @@
 ## Latency
 
-### Compared to [urllib3](https://github.com/urllib3/urllib3) (sync)
+1. [urllib3 (sync)](#urllib3)
+2. [aiohttp (async)](#aiohttp)
+3. [httpx (async)](#httpx)
+4. [rnet (async)](#rnet)
+5. [niquests (async)](#niquests)
+
+### Compared to [urllib3](https://github.com/urllib3/urllib3) (sync) <a name="urllib3" id="urllib3"></a>
 
 <p align="center">
     <img width="1200" alt="urllib3" src="https://raw.githubusercontent.com/MarkusSintonen/pyreqwest/refs/heads/main/tests/bench/benchmark_urllib3.png" />
 </p>
 
-### Compared to [aiohttp](https://github.com/aio-libs/aiohttp) (async)
+### Compared to [aiohttp](https://github.com/aio-libs/aiohttp) (async) <a name="aiohttp" id="aiohttp"></a>
 
 <p align="center">
     <img width="1200" alt="aiohttp" src="https://raw.githubusercontent.com/MarkusSintonen/pyreqwest/refs/heads/main/tests/bench/benchmark_aiohttp.png" />
 </p>
 
-### Compared to [httpx](https://github.com/encode/httpx) (async)
+### Compared to [httpx](https://github.com/encode/httpx) (async) <a name="httpx" id="httpx"></a>
 
 <p align="center">
     <img width="1200" alt="httpx" src="https://raw.githubusercontent.com/MarkusSintonen/pyreqwest/refs/heads/main/tests/bench/benchmark_httpx.png" />
 </p>
 
-### Compared to [rnet](https://github.com/0x676e67/rnet) (async)
+### Compared to [rnet](https://github.com/0x676e67/rnet) (async) <a name="rnet" id="rnet"></a>
 
 <p align="center">
     <img width="1200" alt="rnet" src="https://raw.githubusercontent.com/MarkusSintonen/pyreqwest/refs/heads/main/tests/bench/benchmark_rnet.png" />
@@ -34,7 +40,7 @@
 -->
 
 
-### Compared to [niquests](https://github.com/jawah/niquests) (async)
+### Compared to [niquests](https://github.com/jawah/niquests) (async) <a name="niquests" id="niquests"></a>
 
 <p align="center">
     <img width="1200" alt="rnet" src="https://raw.githubusercontent.com/MarkusSintonen/pyreqwest/refs/heads/main/tests/bench/benchmark_niquests.png" />
