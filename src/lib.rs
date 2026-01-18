@@ -16,6 +16,10 @@ use crate::internal::module_utils::{register_collections_abc, register_submodule
 use crate::internal::types::Method;
 use crate::request::{OneOffRequestBuilder, SyncOneOffRequestBuilder};
 
+#[cfg(feature = "mimalloc")]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 #[pymodule(name = "_pyreqwest", gil_used = false)]
 mod pyreqwest {
     use super::*;

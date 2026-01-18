@@ -194,17 +194,22 @@ jobs:
 
       # https://aws.github.io/aws-lc-rs/faq.html#can-i-run-aws-lc-rs-on-x-platform-or-architecture
       - name: Setup aws-lc-rs
-        if: matrix.target == 'armv7' || matrix.target == 'ppc64le' || matrix.target == 's390x'
+        if: ${{ matrix.target == 'armv7' || matrix.target == 'ppc64le' || matrix.target == 's390x' }}
         run: |
           echo "REQUIRES_BINDGEN=1" >> $GITHUB_ENV
           cargo add aws-lc-rs --features bindgen
 
-      - name: build wheels
+      - name: Select features
+        if: ${{ !(matrix.target == 'armv7' || matrix.target == 'ppc64le' || matrix.target == 's390x') }}
+        run: |
+          echo "FEATURES=--features mimalloc" >> $GITHUB_ENV
+
+      - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
-          args: --release --out dist --interpreter ${{ env.PYTHON_VERSIONS }}
+          args: --release --out dist ${{ env.FEATURES }} --interpreter ${{ env.PYTHON_VERSIONS }}
           rust-toolchain: stable
           docker-options: -e CI
           before-script-linux: |
@@ -226,26 +231,26 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: get dist artifacts
+      - name: Get dist artifacts
         uses: actions/download-artifact@v7
         with:
           pattern: pypi_files_*
           merge-multiple: true
           path: dist
 
-      - name: list dist files
+      - name: List dist files
         run: |
           ls -lh dist/
           ls -l dist/
           echo "`ls dist | wc -l` files"
 
-      - name: extract and list sdist file
+      - name: Extract and list sdist file
         run: |
           mkdir sdist-files
           tar -xvf dist/*.tar.gz -C sdist-files
           tree -a sdist-files
 
-      - name: extract and list wheel file
+      - name: Extract and list wheel file
         run: |
           ls dist/*cp311-manylinux*x86_64.whl | head -n 1
           python -m zipfile --list `ls dist/*cp311-manylinux*x86_64.whl | head -n 1`
@@ -266,7 +271,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: get dist artifacts
+      - name: Get dist artifacts
         uses: actions/download-artifact@v7
         with:
           pattern: pypi_files_linux_*
@@ -274,7 +279,7 @@ jobs:
           path: dist
 
       - uses: uraimo/run-on-arch-action@v3.0.1
-        name: install & test
+        name: Install & test
         with:
           arch: ${{ matrix.target }}
           distro: ${{ matrix.distro }}
@@ -320,7 +325,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
 
-      - name: get dist artifacts
+      - name: Get dist artifacts
         uses: actions/download-artifact@v7
         with:
           pattern: pypi_files_*
@@ -347,7 +352,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
 
-      - name: get dist artifacts
+      - name: Get dist artifacts
         uses: actions/download-artifact@v7
         with:
           pattern: pypi_files_*

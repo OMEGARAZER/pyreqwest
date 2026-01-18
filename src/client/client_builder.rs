@@ -263,7 +263,7 @@ impl BaseClientBuilder {
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
-    fn interface(slf: PyRefMut<Self>, value: String) -> PyResult<PyRefMut<Self>> {
+    fn interface(_slf: PyRefMut<Self>, _value: String) -> PyResult<PyRefMut<Self>> {
         Err(PyValueError::new_err("interface is not supported on this platform"))
     } // :NOCOV_END
 
