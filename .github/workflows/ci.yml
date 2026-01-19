@@ -39,7 +39,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: 'v1-test'
+          prefix-key: 'v1-test-python-${{ matrix.python-version }}'
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}

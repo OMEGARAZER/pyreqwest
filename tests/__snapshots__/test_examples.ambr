@@ -4,7 +4,7 @@
   
   # running: example_basic_auth
   {'authorized': True, 'user': 'user'}
-  {'error': "('HTTP status client error', {'status': 401})"}
+  {'error': "('HTTP status client error', {'causes': None, 'status': 401})"}
   
   '''
 # ---
@@ -13,7 +13,7 @@
   
   # running: example_bearer_auth
   {'authenticated': True, 'token': 'mytoken'}
-  {'error': "('HTTP status client error', {'status': 401})"}
+  {'error': "('HTTP status client error', {'causes': None, 'status': 401})"}
   
   '''
 # ---
@@ -29,7 +29,7 @@
   '''
   
   # running: example_error_for_status
-  {'error': "('HTTP status client error', {'status': 400})"}
+  {'error': "('HTTP status client error', {'causes': None, 'status': 400})"}
   {'status': 400}
   
   '''

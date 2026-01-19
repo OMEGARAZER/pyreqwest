@@ -40,7 +40,7 @@ async def test_proxy_simple(
         req = client.get("http://foo.invalid/test").build()
         with pytest.raises(ConnectError) as e:
             await req.send()
-        assert e.value.details and {"message": "dns error"} in e.value.details["causes"]
+        assert e.value.details and {"message": "dns error"} in (e.value.details["causes"] or [])
 
 
 async def test_proxy_custom(echo_server: SubprocessServer):
@@ -81,7 +81,7 @@ async def test_proxy_custom__fail(case: str):
         req = client.get("http://foo.invalid/").build()
         with pytest.raises(RequestPanicError) as e:
             await req.send()
-        assert e.value.details and expect_cause in e.value.details["causes"]
+        assert e.value.details and expect_cause in (e.value.details["causes"] or [])
 
 
 async def test_proxy_headers(echo_server: SubprocessServer):

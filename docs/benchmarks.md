@@ -1,11 +1,11 @@
-## Latency
+## Latency comparisons
 
-1. [urllib3 (sync)](#urllib3)
-2. [aiohttp (async)](#aiohttp)
-3. [httpx (async)](#httpx)
-4. [rnet (async)](#rnet)
-5. [niquests (async)](#niquests)
-6. [ry (async)](#ry)
+- [urllib3 (sync)](#urllib3)
+- [aiohttp (async)](#aiohttp)
+- [httpx (async)](#httpx)
+- [rnet (async)](#rnet)
+- [niquests (async)](#niquests)
+- [ry (async)](#ry)
 
 In graphs `pyreqwest (st)` uses single-threaded and `pyreqwest (mt)` multi-threaded [runtime](./performance.md#async-runtime).
 

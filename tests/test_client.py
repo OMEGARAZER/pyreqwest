@@ -75,7 +75,7 @@ async def test_error_for_status(echo_server: SubprocessServer, value: bool | Non
             with pytest.raises(StatusError) as e:
                 await req.send()
             assert e.value.details
-            assert e.value.details["status"] == 400
+            assert e.value.details["status"] == 400 and e.value.details["causes"] is None
         else:
             assert (await req.send()).status == 400
 
@@ -192,7 +192,9 @@ async def test_connection_failure__while_client_read(echo_body_parts_server: Sub
         with pytest.raises(ReadError, match="response body connection error") as e:  # noqa: PT012
             while await resp.body_reader.read(65536):
                 pass
-        assert e.value.details and {"message": "error reading a body from connection"} in e.value.details["causes"]
+        assert e.value.details and {"message": "error reading a body from connection"} in (
+            e.value.details["causes"] or []
+        )
 
 
 @pytest.mark.skipif(IS_CI and IS_OSX, reason="Does not work on GHA macOS runners")
@@ -204,7 +206,7 @@ async def test_too_big_response_header(echo_server: SubprocessServer):
         with pytest.raises(DecodeError, match="error decoding response") as e:
             await req.send()
         assert type(e.value) is DecodeError
-        assert e.value.details and {"message": "message head is too large"} in e.value.details["causes"]
+        assert e.value.details and {"message": "message head is too large"} in (e.value.details["causes"] or [])
 
 
 async def test_user_agent(echo_server: SubprocessServer):
@@ -254,7 +256,7 @@ async def test_response_compression(echo_server: SubprocessServer):
 
         with pytest.raises(BodyDecodeError, match="error decoding body") as e:
             await client.get(echo_server.url.with_query({"compress": "gzip_invalid"})).build().send()
-        assert e.value.details and {"message": "Invalid gzip header"} in e.value.details["causes"]
+        assert e.value.details and {"message": "Invalid gzip header"} in (e.value.details["causes"] or [])
 
     async with ClientBuilder().gzip(False).error_for_status(True).build() as client:
         res = await (await client.get(echo_server.url).build().send()).json()
@@ -560,7 +562,7 @@ async def test_max_redirects(echo_server: SubprocessServer):
         req = client.get(url).build()
         with pytest.raises(RedirectError, match="error following redirect") as e:
             await req.send()
-        assert e.value.details and {"message": "too many redirects"} in e.value.details["causes"]
+        assert e.value.details and {"message": "too many redirects"} in (e.value.details["causes"] or [])
 
 
 def test_bad_tls_version():

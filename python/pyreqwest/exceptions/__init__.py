@@ -1,7 +1,7 @@
 """Exception classes."""
 
 from json import JSONDecodeError as JSONDecodeError_
-from typing import Any, Generic, TypedDict, TypeVar
+from typing import Any, TypedDict
 
 
 class Cause(TypedDict):
@@ -19,10 +19,8 @@ class CauseErrorDetails(TypedDict):
 class StatusErrorDetails(TypedDict):
     """Details for errors that have an associated HTTP status code."""
 
+    causes: list[Cause] | None
     status: int
-
-
-T = TypeVar("T", bound=CauseErrorDetails | StatusErrorDetails)
 
 
 class PyreqwestError(Exception):
@@ -35,41 +33,46 @@ class PyreqwestError(Exception):
         self.message = message
 
 
-class DetailedPyreqwestError(PyreqwestError, Generic[T]):
+class DetailedPyreqwestError(PyreqwestError):
     """Base class for all pyreqwest errors with details.
 
     Details may be available in `details`.
     """
 
-    def __init__(self, message: str, details: T) -> None:
+    def __init__(self, message: str, details: CauseErrorDetails) -> None:
         """Internally initialized."""
         assert isinstance(details, dict)
         PyreqwestError.__init__(self, message, details)
-        self.details = details
+        self.details: CauseErrorDetails = details
 
 
-class RequestError(DetailedPyreqwestError[T], Generic[T]):
+class RequestError(DetailedPyreqwestError):
     """Error while processing a request.
 
     Details may be available in `details`.
     """
 
 
-class StatusError(RequestError[StatusErrorDetails]):
+class StatusError(RequestError):
     """Error due to HTTP 4xx or 5xx status code. Raised when `error_for_status` is enabled.
 
     The status code is available in `details["status"]`.
     """
 
+    def __init__(self, message: str, details: StatusErrorDetails) -> None:
+        """Internally initialized."""
+        RequestError.__init__(self, message, details)
+        self.details: StatusErrorDetails = details
 
-class RedirectError(RequestError[CauseErrorDetails]):
+
+class RedirectError(RequestError):
     """Error due to too many redirects. Raised when `max_redirects` is exceeded.
 
     Cause details may be available in `details["causes"]`.
     """
 
 
-class DecodeError(RequestError[CauseErrorDetails]):
+class DecodeError(RequestError):
     """Error while decoding the response.
 
     Cause details may be available in `details["causes"]`.
@@ -98,7 +101,7 @@ class JSONDecodeError(BodyDecodeError, JSONDecodeError_):
         BodyDecodeError.__init__(self, message, {"causes": details["causes"]})
 
 
-class TransportError(RequestError[CauseErrorDetails]):
+class TransportError(RequestError):
     """Error while processing the transport layer.
 
     Cause details may be available in `details["causes"]`.
@@ -170,21 +173,21 @@ class WriteError(NetworkError):
     """
 
 
-class ClientClosedError(RequestError[CauseErrorDetails]):
+class ClientClosedError(RequestError):
     """Error due to user closing the client while request was being processed.
 
     Cause details may be available in `details["causes"]`.
     """
 
 
-class BuilderError(DetailedPyreqwestError[CauseErrorDetails], ValueError):
+class BuilderError(DetailedPyreqwestError, ValueError):
     """Error while building a request.
 
     Cause details may be available in `details["causes"]`.
     """
 
 
-class RequestPanicError(RequestError[CauseErrorDetails]):
+class RequestPanicError(RequestError):
     """Error due to a panic in the request processing.
 
     This indicates a bug in pyreqwest or one of its dependencies.

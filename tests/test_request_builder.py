@@ -191,7 +191,7 @@ async def test_form_query_invalid(client: Client, echo_server: SubprocessServer,
         build([(1, "b")])
     with pytest.raises(BuilderError, match="Failed to build request") as e:
         build([("foo", {"a": "b"})]).build()
-    assert e.value.details and {"message": "unsupported value"} in e.value.details["causes"]
+    assert e.value.details and {"message": "unsupported value"} in (e.value.details["causes"] or [])
 
 
 async def test_form_fails_with_body_set(client: Client, echo_server: SubprocessServer):

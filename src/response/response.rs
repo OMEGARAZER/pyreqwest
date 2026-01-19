@@ -114,7 +114,10 @@ impl BaseResponse {
             debug_assert!(inner.status.0.is_server_error());
             "HTTP status server error"
         };
-        Err(StatusError::from_custom(msg, json!({"status": inner.status.0.as_u16()})))
+        Err(StatusError::from_custom(
+            msg,
+            json!({"status": inner.status.0.as_u16(), "causes": serde_json::Value::Null}),
+        ))
     }
 
     fn get_header(&self, key: &str) -> PyResult<Option<HeaderValue>> {
