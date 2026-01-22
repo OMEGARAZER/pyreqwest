@@ -46,7 +46,7 @@ This is not a good choice when:
 - Automatic decompression (zstd, gzip, brotli, deflate)
 - Automatic response decoding (charset detection)
 - Multipart form support
-- Proxy support
+- Proxy support (also SOCKS)
 - Redirects
 - Timeouts
 - Authentication (Basic, Bearer)
