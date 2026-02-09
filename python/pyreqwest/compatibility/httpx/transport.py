@@ -29,6 +29,9 @@ class HttpxTransport(httpx.AsyncBaseTransport):
     def __init__(self, client: Client | None = None, *, close_client: bool = True) -> None:
         """Initialize the HttpxTransport.
         :param client: An optional pyreqwest Client instance. If not provided, a default Client will be created.
+            Note: httpx does not expose the used client features into its transport interface. Therefore, pyreqwest
+            client should be configured for advanced use-cases. For example, cookie support must be enabled on the
+            client explicitly if needed.
         :param close_client: Whether to close the provided Client when the transport is closed.
         """
         self._client: Client = client or ClientBuilder().build()
@@ -80,6 +83,9 @@ class SyncHttpxTransport(httpx.BaseTransport):
     def __init__(self, client: SyncClient | None = None, *, close_client: bool = True) -> None:
         """Initialize the SyncHttpxTransport.
         :param client: An optional pyreqwest SyncClient instance. If not provided, a default SyncClient will be created.
+            Note: httpx does not expose the used client features into its transport interface. Therefore, pyreqwest
+            client should be configured for advanced use-cases. For example, cookie support must be enabled on the
+            client explicitly if needed.
         :param close_client: Whether to close the provided SyncClient when the transport is closed.
         """
         self._client: SyncClient = client or SyncClientBuilder().build()
