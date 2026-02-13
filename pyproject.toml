@@ -49,6 +49,7 @@ dev = [
     "mypy==1.19.1",
     "packaging==26.0",
     "pydantic==2.12.5",
+    "cryptography==46.0.3",
     # Compatibility checks with other libraries
     "dirty-equals==0.11",
     "yarl==1.22.0",

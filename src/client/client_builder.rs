@@ -31,6 +31,8 @@ pub struct BaseClientBuilder {
     max_connections: Option<usize>,
     total_timeout: Option<Duration>,
     pool_timeout: Option<Duration>,
+    follow_redirects: bool,
+    max_redirects: Option<usize>,
     http1_lower_case_headers: bool,
     error_for_status: bool,
     default_headers: Option<HeaderMap>,
@@ -65,6 +67,9 @@ impl BaseClientBuilder {
     }
 
     fn max_connections(mut slf: PyRefMut<Self>, max_connections: Option<usize>) -> PyResult<PyRefMut<Self>> {
+        if max_connections == Some(0) {
+            return Err(PyValueError::new_err("max_connections must be greater than 0"));
+        }
         slf.check_inner()?;
         slf.max_connections = max_connections;
         Ok(slf)
@@ -111,16 +116,16 @@ impl BaseClientBuilder {
         Self::apply(slf, false, |builder| Ok(builder.deflate(enable)))
     }
 
-    fn follow_redirects(slf: PyRefMut<Self>, enable: bool) -> PyResult<PyRefMut<Self>> {
-        let policy = match enable {
-            true => redirect::Policy::default(),
-            false => redirect::Policy::none(),
-        };
-        Self::apply(slf, false, |builder| Ok(builder.redirect(policy)))
+    fn follow_redirects(mut slf: PyRefMut<Self>, enable: bool) -> PyResult<PyRefMut<Self>> {
+        slf.check_inner()?;
+        slf.follow_redirects = enable;
+        Ok(slf)
     }
 
-    fn max_redirects(slf: PyRefMut<Self>, max_redirects: usize) -> PyResult<PyRefMut<Self>> {
-        Self::apply(slf, false, |builder| Ok(builder.redirect(redirect::Policy::limited(max_redirects))))
+    fn max_redirects(mut slf: PyRefMut<Self>, max_redirects: usize) -> PyResult<PyRefMut<Self>> {
+        slf.check_inner()?;
+        slf.max_redirects = Some(max_redirects);
+        Ok(slf)
     }
 
     fn referer(slf: PyRefMut<Self>, enable: bool) -> PyResult<PyRefMut<Self>> {
@@ -384,6 +389,7 @@ impl BaseClientBuilder {
     pub fn new() -> Self {
         Self {
             inner: Some(reqwest::ClientBuilder::new().user_agent(DEFAULT_UA)),
+            follow_redirects: true,
             http1: true,
             // HTTP2 is opt-in as in reqwest its also opt-in via crate features. Default reqwest HTTP2 params
             // usual require tuning based on the workload.
@@ -396,7 +402,7 @@ impl BaseClientBuilder {
         py.detach(|| {
             let runtime = RuntimeHandle::global_handle(self.runtime_multithreaded)?.clone();
 
-            let mut inner_builder = self
+            let mut builder = self
                 .inner
                 .take()
                 .ok_or_else(|| PyRuntimeError::new_err("Client was already built"))?
@@ -405,22 +411,32 @@ impl BaseClientBuilder {
             if self.http1 && self.http2 {
                 // Both enabled (default with reqwest http2 feature enabled)
             } else if self.http1 && !self.http2 {
-                inner_builder = inner_builder.http1_only();
+                builder = builder.http1_only();
             } else if !self.http1 && self.http2 {
-                inner_builder = inner_builder.http2_prior_knowledge();
+                builder = builder.http2_prior_knowledge();
             } else {
                 return Err(BuilderError::from_msg("At least one of http1 or http2 must be enabled")); // :NOCOV
             }
 
+            if self.follow_redirects {
+                if let Some(max) = self.max_redirects {
+                    builder = builder.redirect(redirect::Policy::limited(max));
+                } else {
+                    // Uses the reqwest default
+                }
+            } else {
+                builder = builder.redirect(redirect::Policy::none());
+            }
+
             if !self.http1_lower_case_headers {
-                inner_builder = inner_builder.http1_title_case_headers();
+                builder = builder.http1_title_case_headers();
             }
             if self.connection_verbose {
                 init_verbose_logging()?;
             }
 
             let client = BaseClient::new(
-                inner_builder
+                builder
                     .build()
                     .map_err(|e| BuilderError::from_err("builder error", &e))?,
                 runtime,

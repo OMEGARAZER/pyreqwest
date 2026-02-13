@@ -144,10 +144,14 @@ class BaseClientBuilder:
         """Enable auto deflate decompression. Default is true."""
 
     def follow_redirects(self, enable: bool) -> Self:
-        """Enable automatic following of HTTP redirects. Default is to follow redirects."""
+        """Enable or disable automatic following of HTTP redirects. Default is to follow redirects.
+        Custom redirect handling can be implemented via middleware when this option is disabled.
+        """
 
     def max_redirects(self, max_redirects: int) -> Self:
-        """Set maximum number of followed redirects. Default will follow redirects up to a maximum of 10."""
+        """Set maximum number of followed redirects. Default will follow redirects up to a maximum of 10.
+        This option is ignored if `follow_redirects` is disabled.
+        """
 
     def referer(self, enable: bool) -> Self:
         """Enable or disable automatic setting of the Referer header. Default is true."""

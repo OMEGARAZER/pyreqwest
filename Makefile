@@ -63,3 +63,9 @@ docs-browser:
 profile:
 	uv run maturin develop --uv --all-features --profile profiling
 	samply record uv run python -m tests.bench.latency --lib pyreqwest
+
+.PHONY: bump-deps
+bump-deps:
+	cargo upgrade --pinned
+	cargo update
+	uv run python ./scripts/bump_py_deps.py

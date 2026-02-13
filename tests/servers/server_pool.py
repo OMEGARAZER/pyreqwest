@@ -1,7 +1,7 @@
 import asyncio
 from collections import defaultdict
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import Self
 
 from tests.utils import wait_for
@@ -61,4 +61,5 @@ class ServerPool:
         for server_queue in self._pools.values():
             while not server_queue.empty():
                 server = await server_queue.get()
-                await server.kill()
+                with suppress(ProcessLookupError):
+                    await server.kill()

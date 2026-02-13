@@ -1,23 +1,5 @@
 version: 2
 updates:
-  - package-ecosystem: "cargo"
-    directory: "/"
-    schedule:
-      interval: "quarterly"
-    groups:
-      rust-dependencies:
-        patterns:
-          - "*"
-
-  - package-ecosystem: "uv"
-    directory: "/"
-    schedule:
-      interval: "quarterly"
-    groups:
-      python-dependencies:
-        patterns:
-          - "*"
-
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
