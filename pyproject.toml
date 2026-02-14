@@ -76,7 +76,7 @@ bench = [
 # this ensures that `uv run` doesn't actually build the package; "maturin develop" is needed
 package = false
 required-version = ">=0.9.18"
-default-groups = ["dev", "bench"]
+default-groups = ["dev"]
 
 [tool.maturin]
 module-name = "pyreqwest._pyreqwest"

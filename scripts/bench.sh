@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-uv sync
+uv sync --all-groups
 uv run maturin develop --uv --all-features --release
 
 libs=(
