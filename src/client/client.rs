@@ -109,7 +109,7 @@ impl BaseClient {
 
             let reqwest_request_builder = self.client.request(method.0, url);
             let middlewares_next = self.init_middleware_next()?;
-            let default_headers = self.default_headers.as_ref().map(|v| v.try_clone()).transpose()?;
+            let default_headers = self.default_headers.as_ref().map(|v| v.try_clone_inner()).transpose()?;
 
             let mut builder = BaseRequestBuilder::new(
                 reqwest_request_builder,

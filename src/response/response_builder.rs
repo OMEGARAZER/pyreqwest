@@ -49,7 +49,7 @@ impl ResponseBuilder {
 
     fn headers(mut slf: PyRefMut<'_, Self>, headers: HeaderMap) -> PyResult<PyRefMut<'_, Self>> {
         let head = slf.mut_head()?;
-        headers.extend_into_headers(&mut head.headers)?;
+        head.headers.extend(headers.try_take_inner()?);
         Ok(slf)
     }
 

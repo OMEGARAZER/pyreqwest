@@ -126,8 +126,8 @@ class BaseRequestBuilder:
     def error_for_status(self, enable: bool = True) -> Self:
         """Enable automatic HTTP error raising (4xx/5xx)."""
 
-    def header(self, name: str, value: str) -> Self:
-        """Append single header value."""
+    def header(self, key: str, value: str, *, is_sensitive: bool = False) -> Self:
+        """Append a single header value. Using `is_sensitive` masks the value from repr of request `HeaderMap`."""
 
     def headers(self, headers: HeadersType) -> Self:
         """Merge multiple headers (mapping or sequence)."""

@@ -1,3 +1,4 @@
+import base64
 from collections.abc import AsyncGenerator, Mapping, Sequence
 from datetime import timedelta
 from typing import Any
@@ -65,6 +66,40 @@ async def test_header(client: Client, echo_server: SubprocessServer):
         client.get(echo_server.url).header("X-Test", "Val\n")
 
 
+async def test_header__appends(client: Client, echo_server: SubprocessServer):
+    resp = await client.get(echo_server.url).header("X-Test", "Foo").header("X-Test", "Bar").build().send()
+    got = (await resp.json())["headers"]
+    assert [(k, v) for k, v in got if "x-test" in k] == [("x-test", "Foo"), ("x-test", "Bar")]
+
+
+async def test_header__json_correct_content_type(client: Client, echo_server: SubprocessServer):
+    resp = (
+        await client.post(echo_server.url).header("content-type", "application/json").body_json({"a": 1}).build().send()
+    )
+    got = (await resp.json())["headers"]
+    assert [(k, v) for k, v in got if k == "content-type"] == [("content-type", "application/json")]
+
+    resp = await client.post(echo_server.url).header("content-type", "text/plain").body_json({"a": 1}).build().send()
+    got = (await resp.json())["headers"]
+    assert [(k, v) for k, v in got if k == "content-type"] == [("content-type", "application/json")]
+
+
+async def test_header__sensitive(client: Client, echo_server: SubprocessServer):
+    req = client.get(echo_server.url).header("X-Test", "Val", is_sensitive=True).build()
+    assert repr(req.headers) == "HeaderMap({'x-test': 'Sensitive'})"
+
+    req = client.get(echo_server.url).bearer_auth("test").build()
+    assert repr(req.headers) == "HeaderMap({'authorization': 'Sensitive'})"
+
+    req = client.get(echo_server.url).basic_auth("user", "pass").build()
+    assert repr(req.headers) == "HeaderMap({'authorization': 'Sensitive'})"
+
+    headers = HeaderMap()
+    headers.append("X-Test", "Val", is_sensitive=True)
+    req = client.get(echo_server.url).headers(headers).build()
+    assert repr(req.headers) == "HeaderMap({'x-test': 'Sensitive'})"
+
+
 async def test_headers(client: Client, echo_server: SubprocessServer):
     for type_ in [list, tuple, dict, HeaderMap]:
         headers = type_([("X-Test-1", "Val1"), ("X-Test-2", "Val2")])
@@ -83,15 +118,26 @@ async def test_headers(client: Client, echo_server: SubprocessServer):
         client.get(echo_server.url).headers({"X-Test": "Val\n"})
 
 
+async def test_headers__replaces(client: Client, echo_server: SubprocessServer):
+    headers1 = HeaderMap([("X-Test", "foo")])
+    headers2 = HeaderMap([("X-Test", "bar"), ("X-Test2", "baz")])
+    resp = await client.get(echo_server.url).headers(headers1).headers(headers2).build().send()
+    got = (await resp.json())["headers"]
+    assert [(k, v) for k, v in got if "x-test" in k] == [("x-test", "bar"), ("x-test2", "baz")]
+
+
 @pytest.mark.parametrize("password", ["test_pass", None])
 async def test_basic_auth(client: Client, echo_server: SubprocessServer, password: str | None):
     resp = await client.get(echo_server.url).basic_auth("user", password).build().send()
-    assert dict((await resp.json())["headers"])["authorization"].startswith("Basic ")
+    auth = str(dict((await resp.json())["headers"])["authorization"])
+    assert auth.startswith("Basic ")
+    assert base64.standard_b64decode(auth.removeprefix("Basic ")).decode() == f"user:{password or ''}"
 
 
 async def test_bearer_auth(client: Client, echo_server: SubprocessServer):
     resp = await client.get(echo_server.url).bearer_auth("test_token").build().send()
-    assert dict((await resp.json())["headers"])["authorization"].startswith("Bearer ")
+    headers = (await resp.json())["headers"]
+    assert [(k, v) for k, v in headers if k == "authorization"] == [("authorization", "Bearer test_token")], headers
 
 
 async def test_body_bytes(client: Client, echo_body_parts_server: SubprocessServer):

@@ -1003,8 +1003,9 @@ dependencies = [
 
 [[package]]
 name = "pyreqwest"
-version = "0.11.3"
+version = "0.11.4"
 dependencies = [
+ "base64",
  "bytes",
  "cookie",
  "cookie_store",

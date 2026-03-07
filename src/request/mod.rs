@@ -1,4 +1,5 @@
 mod consumed_request;
+mod internal;
 mod request;
 mod request_body;
 mod request_builder;

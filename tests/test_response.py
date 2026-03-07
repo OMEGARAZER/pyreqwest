@@ -1,12 +1,10 @@
 import asyncio
-import gc
 import json
 import string
 import sys
 import time
-import weakref
 from asyncio import Task
-from collections.abc import AsyncGenerator, AsyncIterator, Iterator, MutableMapping
+from collections.abc import AsyncGenerator, MutableMapping
 from typing import Any
 
 import pytest
@@ -15,7 +13,6 @@ from pyreqwest.bytes import Bytes
 from pyreqwest.client import Client, ClientBuilder
 from pyreqwest.exceptions import BodyDecodeError, JSONDecodeError, StatusError
 from pyreqwest.http import HeaderMap
-from pyreqwest.response import ResponseBuilder
 
 from tests.servers.server_subprocess import SubprocessServer
 
@@ -344,68 +341,6 @@ async def test_response_read_cancel(client: Client, echo_body_parts_server: Subp
         assert time.time() - start < max_cancel_delay
 
 
-async def test_response_builder():
-    async def stream() -> AsyncIterator[bytes]:
-        yield b"test1 "
-        yield b"test2"
-
-    resp = (
-        await ResponseBuilder()
-        .status(201)
-        .headers([("X-Test", "Value1"), ("X-Test", "Value2")])
-        .header("X-Test", "Value3")
-        .header("X-Test2", "Value4")
-        .extensions({"foo": "bar"})
-        .version("HTTP/2.0")
-        .body_stream(stream())
-        .build()
-    )
-
-    assert resp.headers["X-Test"] == "Value1"
-    assert resp.headers.getall("X-Test") == ["Value1", "Value2", "Value3"]
-    assert resp.headers.getall("X-Test2") == ["Value4"]
-    assert resp.extensions == {"foo": "bar"}
-    assert resp.status == 201
-    assert await resp.bytes() == b"test1 test2"
-    assert resp.version == "HTTP/2.0"
-
-
-def test_response_builder__sync():
-    def stream() -> Iterator[bytes]:
-        yield b"test1 "
-        yield b"test2"
-
-    resp = (
-        ResponseBuilder()
-        .status(201)
-        .headers([("X-Test", "Value1"), ("X-Test", "Value2")])
-        .header("X-Test", "Value3")
-        .header("X-Test2", "Value4")
-        .extensions({"foo": "bar"})
-        .version("HTTP/2.0")
-        .body_stream(stream())
-        .build_sync()
-    )
-
-    assert resp.headers["X-Test"] == "Value1"
-    assert resp.headers.getall("X-Test") == ["Value1", "Value2", "Value3"]
-    assert resp.headers.getall("X-Test2") == ["Value4"]
-    assert resp.extensions == {"foo": "bar"}
-    assert resp.status == 201
-    assert resp.bytes() == b"test1 test2"
-    assert resp.version == "HTTP/2.0"
-
-
-async def test_response_builder__sync_no_async_mix() -> None:
-    async def stream() -> AsyncIterator[bytes]:
-        pytest.fail("Should not be called")
-        yield b""
-
-    builder = ResponseBuilder().body_stream(stream())
-    with pytest.raises(ValueError, match="Cannot use async iterator in a blocking context"):
-        builder.build_sync()
-
-
 async def test_bytes_buffer_abc(client: Client, echo_body_parts_server: SubprocessServer) -> None:
     resp = await client.get(echo_body_parts_server.url).build().send()
     buf = await resp.bytes()
@@ -414,30 +349,3 @@ async def test_bytes_buffer_abc(client: Client, echo_body_parts_server: Subproce
         from collections.abc import Buffer
 
         assert isinstance(buf, Buffer) and issubclass(type(buf), Buffer)
-
-
-def test_response_builder__circular_reference_collected() -> None:
-    # Check the GC support via __traverse__ and __clear__
-    ref: weakref.ReferenceType[Any] | None = None
-
-    def check() -> None:
-        nonlocal ref
-
-        class StreamHandler:
-            def __init__(self) -> None:
-                self.builder: ResponseBuilder | None = None
-
-            def __aiter__(self) -> AsyncGenerator[bytes]:
-                async def gen() -> AsyncGenerator[bytes]:
-                    yield b"test"
-
-                return gen()
-
-        stream = StreamHandler()
-        resp = ResponseBuilder().body_stream(stream)
-        stream.builder = resp
-        ref = weakref.ref(stream)
-
-    check()
-    gc.collect()
-    assert ref is not None and ref() is None

@@ -1,5 +1,12 @@
+use crate::internal::types::HeaderValue;
+use base64::prelude::BASE64_STANDARD;
+use base64::write::EncoderWriter;
+use bytes::Bytes;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyEllipsis, PyList, PyMapping, PySequence, PyTuple};
+use std::io::Write;
+use std::str::FromStr;
 
 pub fn ellipsis() -> Py<PyEllipsis> {
     Python::attach(|py| PyEllipsis::get(py).to_owned().unbind())
@@ -48,4 +55,25 @@ impl<'py> KeyValPairs<'py> {
             KeyValPairs::Sequence(v) => v.len(),
         }
     }
+}
+
+pub fn basic_auth(username: String, password: Option<String>) -> PyResult<http::HeaderValue> {
+    let mut buf = b"Basic ".to_vec();
+    {
+        let mut encoder = EncoderWriter::new(&mut buf, &BASE64_STANDARD);
+        let _ = write!(encoder, "{username}:");
+        if let Some(password) = password {
+            let _ = write!(encoder, "{password}");
+        }
+    }
+    let mut header =
+        http::HeaderValue::from_maybe_shared(Bytes::from(buf)).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    header.set_sensitive(true);
+    Ok(header)
+}
+
+pub fn bearer_auth(token: String) -> PyResult<http::HeaderValue> {
+    let mut header = HeaderValue::from_str(&format!("Bearer {token}"))?.0;
+    header.set_sensitive(true);
+    Ok(header)
 }

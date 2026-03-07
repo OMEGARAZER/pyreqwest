@@ -306,11 +306,14 @@ class HeaderMap(MutableMapping[str, str]):
         """All values for key. Empty if key does not exist."""
 
     def insert(self, key: str, value: str, *, is_sensitive: bool = False) -> list[str]:
-        """Replace all existing values for key with value. Returns list of removed values (may be empty)."""
+        """Replace all existing values for key with value. Returns list of removed values (may be empty).
+        Using `is_sensitive` masks the value from repr of `HeaderMap`.
+        """
 
     def append(self, key: str, value: str, *, is_sensitive: bool = False) -> bool:
         """Add value for a key. If the map did have this key present, the new value is pushed to the end of the list of
-        values currently associated with the key. Return True if key already existed, else False.
+        values currently associated with the key. Using `is_sensitive` masks the value from repr of `HeaderMap`.
+        Return True if key already existed, else False.
         """
 
     def extend(self, other: HeadersType) -> None:
