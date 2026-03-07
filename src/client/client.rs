@@ -109,6 +109,7 @@ impl BaseClient {
 
             let reqwest_request_builder = self.client.request(method.0, url);
             let middlewares_next = self.init_middleware_next()?;
+            let default_headers = self.default_headers.as_ref().map(|v| v.try_clone()).transpose()?;
 
             let mut builder = BaseRequestBuilder::new(
                 reqwest_request_builder,
@@ -116,16 +117,13 @@ impl BaseClient {
                 middlewares_next,
                 json_handler,
                 self.error_for_status,
+                default_headers,
                 self.connection_verbose,
                 is_blocking,
             );
 
             self.total_timeout
                 .map(|timeout| builder.inner_timeout(timeout))
-                .transpose()?;
-            self.default_headers
-                .as_ref()
-                .map(|default_headers| builder.inner_headers(default_headers))
                 .transpose()?;
             Ok(builder)
         })

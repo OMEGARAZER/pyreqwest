@@ -3,7 +3,7 @@ use crate::http::header_map::views::{HeaderMapItemsView, HeaderMapKeysView, Head
 use crate::internal::types::{HeaderName, HeaderValue};
 use crate::internal::utils::{KeyValPairs, ellipsis};
 use http::header::Entry;
-use pyo3::exceptions::{PyKeyError, PyRuntimeError};
+use pyo3::exceptions::{PyKeyError, PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyEllipsis, PyList, PyString};
 use pyo3::{IntoPyObjectExt, intern};
@@ -265,6 +265,17 @@ impl HeaderMap {
         self.ref_map(|map| Ok(map.get_all(key).into_iter().map(|v| HeaderValue(v.clone())).collect()))
     }
 
+    pub fn remove(&self, key: &str) -> PyResult<bool> {
+        self.mut_map(|map| match map.try_entry(key) {
+            Ok(Entry::Occupied(entry)) => {
+                entry.remove_entry_mult();
+                Ok(true)
+            }
+            Ok(Entry::Vacant(_)) => Ok(false),
+            Err(e) => Err(PyValueError::new_err(e.to_string())),
+        })
+    }
+
     pub fn try_clone(&self) -> PyResult<Self> {
         self.ref_map(|map| Ok(HeaderMap::from(map.clone())))
     }
@@ -353,7 +364,7 @@ impl HeaderMap {
         })
     }
 
-    pub fn extend_into_inner(self, map: &mut http::HeaderMap) -> PyResult<()> {
+    pub fn extend_into_headers(self, map: &mut http::HeaderMap) -> PyResult<()> {
         let mut prev_k: Option<http::HeaderName> = None;
         for (k, v) in self.try_take_inner()? {
             match k {

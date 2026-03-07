@@ -14,12 +14,14 @@ use crate::request::{Request, RequestBody};
 use crate::response::internal::{BodyConsumeConfig, DEFAULT_READ_BUFFER_LIMIT, StreamedReadConfig};
 use crate::response::{Response, SyncResponse};
 use bytes::Bytes;
-use http::header::CONTENT_TYPE;
+use http::header::{AUTHORIZATION, CONTENT_TYPE};
 use pyo3::coroutine::CancelHandle;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::{PyTraverseError, PyVisit};
 use pyo3_bytes::PyBytes;
+use std::iter;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -32,6 +34,7 @@ pub struct BaseRequestBuilder {
     middlewares_next: Option<NextInner>,
     json_handler: Option<JsonHandler>,
     error_for_status: bool,
+    default_headers: Option<HeaderMap>,
     connection_verbose: bool,
     streamed_read_buffer_limit: Option<usize>,
     is_blocking: bool,
@@ -195,19 +198,23 @@ impl BaseRequestBuilder {
         Ok(slf)
     }
 
-    fn header(slf: PyRefMut<Self>, name: HeaderName, value: HeaderValue) -> PyResult<PyRefMut<Self>> {
-        Self::apply(slf, false, |builder| Ok(builder.header(name.0, value.0)))
+    fn header(mut slf: PyRefMut<Self>, name: HeaderName, value: HeaderValue) -> PyResult<PyRefMut<Self>> {
+        slf.inner_header(name, value)?;
+        Ok(slf)
     }
 
-    fn headers(slf: PyRefMut<'_, Self>, headers: HeaderMap) -> PyResult<PyRefMut<'_, Self>> {
+    fn headers(mut slf: PyRefMut<'_, Self>, headers: HeaderMap) -> PyResult<PyRefMut<'_, Self>> {
+        headers.ref_map(|h| slf.remove_default_headers(h.keys().map(|k| k.as_str())))?;
         Self::apply(slf, false, |builder| Ok(builder.headers(headers.try_take_inner()?)))
     }
 
-    fn basic_auth(slf: PyRefMut<Self>, username: String, password: Option<String>) -> PyResult<PyRefMut<Self>> {
+    fn basic_auth(mut slf: PyRefMut<Self>, username: String, password: Option<String>) -> PyResult<PyRefMut<Self>> {
+        slf.remove_default_headers(iter::once(AUTHORIZATION.as_str()))?;
         Self::apply(slf, false, |builder| Ok(builder.basic_auth(username, password)))
     }
 
-    fn bearer_auth(slf: PyRefMut<Self>, token: String) -> PyResult<PyRefMut<Self>> {
+    fn bearer_auth(mut slf: PyRefMut<Self>, token: String) -> PyResult<PyRefMut<Self>> {
+        slf.remove_default_headers(iter::once(AUTHORIZATION.as_str()))?;
         Self::apply(slf, false, |builder| Ok(builder.bearer_auth(token)))
     }
 
@@ -237,8 +244,10 @@ impl BaseRequestBuilder {
                     .map_err(|e| PyValueError::new_err(e.to_string()))
             })?
         };
+
         slf.body = Some(RequestBody::from(bytes));
-        Self::apply(slf, false, |builder| Ok(builder.header(CONTENT_TYPE, "application/json")))
+        slf.inner_header(HeaderName(CONTENT_TYPE), HeaderValue::from_str("application/json")?)?;
+        Ok(slf)
     }
 
     fn query<'py>(slf: PyRefMut<'py, Self>, query: Bound<'_, PyAny>) -> PyResult<PyRefMut<'py, Self>> {
@@ -316,6 +325,7 @@ impl BaseRequestBuilder {
         middlewares_next: Option<NextInner>,
         json_handler: Option<JsonHandler>,
         error_for_status: bool,
+        default_headers: Option<HeaderMap>,
         connection_verbose: bool,
         is_blocking: bool,
     ) -> Self {
@@ -327,6 +337,7 @@ impl BaseRequestBuilder {
             middlewares_next,
             json_handler,
             error_for_status,
+            default_headers,
             connection_verbose,
             streamed_read_buffer_limit: None,
             is_blocking,
@@ -340,7 +351,7 @@ impl BaseRequestBuilder {
     }
 
     fn inner_build(&mut self, consume_body: BodyConsumeConfig) -> PyResult<Request> {
-        let request = self
+        let mut request = self
             .inner
             .take()
             .ok_or_else(|| PyRuntimeError::new_err("Request was already built"))?
@@ -349,6 +360,10 @@ impl BaseRequestBuilder {
 
         if request.body().is_some() && self.body.is_some() {
             return Err(BuilderError::from_msg("Can not set body when multipart or form is used"));
+        }
+
+        if let Some(default_headers) = self.default_headers.take() {
+            default_headers.extend_into_headers(request.headers_mut())?;
         }
 
         let request_data = RequestData {
@@ -379,12 +394,24 @@ impl BaseRequestBuilder {
         }
     }
 
-    pub fn inner_timeout(&mut self, timeout: Duration) -> PyResult<&mut Self> {
-        self.apply_inner(|b| Ok(b.timeout(timeout)))
+    fn inner_header(&mut self, name: HeaderName, value: HeaderValue) -> PyResult<()> {
+        self.remove_default_headers(iter::once(name.0.as_str()))?;
+        self.apply_inner(|builder| Ok(builder.header(name.0, value.0)))?;
+        Ok(())
     }
 
-    pub fn inner_headers(&mut self, headers: &HeaderMap) -> PyResult<&mut Self> {
-        self.apply_inner(|b| Ok(b.headers(headers.try_clone_inner()?)))
+    fn remove_default_headers<'a, I: Iterator<Item = &'a str>>(&'a mut self, keys: I) -> PyResult<()> {
+        self.check_inner()?;
+        if let Some(default_headers) = self.default_headers.as_mut() {
+            for k in keys {
+                default_headers.remove(k)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn inner_timeout(&mut self, timeout: Duration) -> PyResult<&mut Self> {
+        self.apply_inner(|b| Ok(b.timeout(timeout)))
     }
 
     pub fn inner_with_middleware(&mut self, middleware: Bound<PyAny>) -> PyResult<()> {

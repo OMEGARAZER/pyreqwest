@@ -28,6 +28,7 @@ from pyreqwest.exceptions import (
 from pyreqwest.http import HeaderMap, Url
 from pyreqwest.request import BaseRequestBuilder, ConsumedRequest, Request, RequestBuilder
 from pyreqwest.response import BaseResponse, Response, ResponseBodyReader
+from pyreqwest.types import HeadersType
 
 from tests.utils import IS_CI, IS_OSX
 
@@ -226,13 +227,59 @@ async def test_user_agent(echo_server: SubprocessServer):
 
 @pytest.mark.parametrize(
     "value",
-    [HeaderMap({"X-Test": "foobar"}), {"X-Test": "foobar"}, HeaderMap([("X-Test", "foo"), ("X-Test", "bar")])],
+    [
+        HeaderMap({"X-Test": "foobar"}),
+        {"X-Test": "foobar"},
+        HeaderMap([("X-Test", "foo"), ("X-Test2", "bar")]),
+        [("X-Test", "foo"), ("X-Test2", "bar")],
+        HeaderMap([("X-Test", "foo"), ("X-Test", "bar")]),
+    ],
 )
-async def test_default_headers__good(echo_server: SubprocessServer, value: Mapping[str, str]):
+async def test_default_headers(echo_server: SubprocessServer, value: HeadersType):
     async with ClientBuilder().default_headers(value).error_for_status(True).build() as client:
         res = await (await client.get(echo_server.url).build().send()).json()
-        for name, v in value.items():
+        for name, v in value.items() if isinstance(value, Mapping) else value:
             assert [name.lower(), v] in res["headers"]
+
+
+@pytest.mark.parametrize("default", [[("X-Test", "foo")], [("X-Test", "foo"), ("X-Test", "foo2")]])
+async def test_default_headers__replaced(echo_server: SubprocessServer, default: list[tuple[str, str]]):
+    async with ClientBuilder().default_headers(default).error_for_status(True).build() as client:
+        res = await (await client.get(echo_server.url).build().send()).json()
+        assert [(k, v) for k, v in res["headers"] if k == "x-test"] == [(k.lower(), v) for k, v in default]
+
+        res = await (await client.get(echo_server.url).header("X-Test", "bar").build().send()).json()
+        assert [(k, v) for k, v in res["headers"] if k == "x-test"] == [("x-test", "bar")]
+
+
+async def test_default_headers__json(echo_server: SubprocessServer):
+    default = {"Content-Type": "application/json"}
+    async with ClientBuilder().default_headers(default).error_for_status(True).build() as client:
+        res = await (await client.post(echo_server.url).body_bytes(b'{"a": 1}').build().send()).json()
+        assert [(k, v) for k, v in res["headers"] if k == "content-type"] == [("content-type", "application/json")]
+
+        res = await (await client.post(echo_server.url).body_json({"a": 1}).build().send()).json()
+        assert [(k, v) for k, v in res["headers"] if k == "content-type"] == [("content-type", "application/json")]
+
+
+async def test_default_headers__basic_auth(echo_server: SubprocessServer):
+    default = {"Authorization": "Basic YTpi"}
+    async with ClientBuilder().default_headers(default).error_for_status(True).build() as client:
+        res = await (await client.get(echo_server.url).build().send()).json()
+        assert [(k, v) for k, v in res["headers"] if k == "authorization"] == [("authorization", "Basic YTpi")]
+
+        res = await (await client.get(echo_server.url).basic_auth("c", "d").build().send()).json()
+        assert [(k, v) for k, v in res["headers"] if k == "authorization"] == [("authorization", "Basic Yzpk")]
+
+
+async def test_default_headers__bearer_auth(echo_server: SubprocessServer):
+    default = {"Authorization": "Bearer foo"}
+    async with ClientBuilder().default_headers(default).error_for_status(True).build() as client:
+        res = await (await client.get(echo_server.url).build().send()).json()
+        assert [(k, v) for k, v in res["headers"] if k == "authorization"] == [("authorization", "Bearer foo")]
+
+        res = await (await client.get(echo_server.url).bearer_auth("bar").build().send()).json()
+        assert [(k, v) for k, v in res["headers"] if k == "authorization"] == [("authorization", "Bearer bar")]
 
 
 async def test_default_headers__bad():
