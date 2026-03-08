@@ -200,7 +200,9 @@
   '''
   
   # running: example_retry_middleware
-  {'url': 'http://localhost:<PORT>/delay/0', 'status': 200, 'retried': True}
+  Retrying... retries=1
+  Retrying... retries=2
+  {'url': 'http://localhost:<PORT>/delay/0', 'status': 200}
   
   '''
 # ---
@@ -208,7 +210,8 @@
   '''
   
   # running: example_retry_middleware_with_stream
-  {'data': 'hello_world', 'status': 200}
+  Retrying... retries=1
+  {'url': 'http://localhost:<PORT>/delay/0', 'data': 'hello_world_copied', 'status': 200}
   
   '''
 # ---

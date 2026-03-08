@@ -13,6 +13,7 @@ from typing import Self
 from pyreqwest.client import ClientBuilder
 from pyreqwest.exceptions import ConnectTimeoutError
 from pyreqwest.middleware import Next
+from pyreqwest.middleware.types import Middleware
 from pyreqwest.request import Request, RequestBody
 from pyreqwest.response import Response, ResponseBuilder
 
@@ -74,72 +75,77 @@ async def example_extensions() -> None:
         print({"mws": [headers["X-Mw1"], headers["X-Mw2"]], "extensions": resp.extensions})
 
 
-async def retry_middleware(request: Request, next_handler: Next) -> Response:
-    """A simple retry middleware that retries once on ConnectTimeoutError"""
-    request2 = request.copy()  # Copy before first send
+def build_retry_middleware(max_retries: int = 2, simulate_success: bool = True) -> Middleware:
+    """A simple retry middleware that retries max number of times on ConnectTimeoutError"""
 
-    try:
-        await next_handler.run(request)
-        raise RuntimeError("should have raised")
-    except ConnectTimeoutError:
-        pass
+    async def retry_middleware(request: Request, next_handler: Next) -> Response:
+        retries = 0
+        while True:
+            # Copy before "run" for a possible retry request. This does zero-copy of body bytes
+            request_copy = request.copy()
 
-    request2.url = request2.url.with_path("delay/0")  # Succeeds
-    response2 = await next_handler.run(request2)
-    response2.extensions["retried"] = True  # Just to show it was retried
-    return response2
+            if retries == max_retries and simulate_success:
+                request.url = request.url.with_path("delay/0")  # Simulate success
+
+            try:
+                return await next_handler.run(request)
+            except ConnectTimeoutError:
+                if retries >= max_retries:
+                    raise
+                request = request_copy
+                retries += 1
+                print(f"Retrying... retries={retries}")
+
+    return retry_middleware
 
 
 async def example_retry_middleware() -> None:
-    """Retry in a middleware"""
+    """Retry in middleware"""
     async with (
         ClientBuilder()
-        .with_middleware(retry_middleware)
+        .with_middleware(build_retry_middleware(max_retries=2, simulate_success=True))
         .timeout(timedelta(seconds=1))
         .error_for_status(True)
         .build() as client
     ):
-        resp = await client.get(httpbin_url() / "delay/2").build().send()  # First timeouts
-        assert resp.extensions["retried"] is True
+        resp = await client.get(httpbin_url() / "delay/2").build().send()  # Timeouts
         data = await resp.json()
-        print({"url": data["url"], "status": resp.status, "retried": resp.extensions["retried"]})
+        print({"url": data["url"], "status": resp.status})
 
 
 async def example_retry_middleware_with_stream() -> None:
-    """Retry in a middleware with streamed body"""
+    """Retry in middleware with streamed body"""
 
     # Custom stream must support __copy__ to be retryable
-    class MyStream:
-        def __init__(self, copied: bool = False) -> None:
-            self.copied = copied
+    class MyStream(AsyncIterator[bytes]):
+        def __init__(self, parts: list[bytes]) -> None:
+            self.iter_parts = iter(parts)
 
-        def __aiter__(self) -> AsyncIterator[bytes]:
-            if self.copied:
+        def __aiter__(self) -> Self:
+            return self
 
-                async def stream() -> AsyncIterator[bytes]:
-                    yield b"hello"
-                    yield b"_world"
-            else:
-
-                async def stream() -> AsyncIterator[bytes]:
-                    yield b"not_used"
-
-            return stream()
+        async def __anext__(self) -> bytes:
+            try:
+                return next(self.iter_parts)
+            except StopIteration:
+                raise StopAsyncIteration from None
 
         def __copy__(self) -> Self:
-            return self.__class__(copied=True)
+            return self.__class__(parts=[b"hello", b"_world", b"_copied"])  # Just to show it was copied
 
     async with (
         ClientBuilder()
-        .with_middleware(retry_middleware)
+        .with_middleware(build_retry_middleware(max_retries=1, simulate_success=True))
         .timeout(timedelta(seconds=1))
         .error_for_status(True)
         .build() as client
     ):
-        resp = await client.put(httpbin_url() / "delay/2").body_stream(MyStream()).build().send()  # First timeouts
-        body = parse_data_uri((await resp.json())["data"])
-        assert body == "hello_world"
-        print({"data": body, "status": resp.status})
+        stream = MyStream(parts=[b"hello", b"_world"])
+        resp = await client.put(httpbin_url() / "delay/2").body_stream(stream).build().send()  # First timeouts
+        body = await resp.json()
+        body_data = parse_data_uri(body["data"])
+        assert body_data == "hello_world_copied"
+        print({"url": body["url"], "data": body_data, "status": resp.status})
 
 
 async def example_middleware_modify_request_body() -> None:
