@@ -37,28 +37,28 @@ pyreqwest = "pyreqwest.pytest_plugin.internal.plugin"
 
 [dependency-groups]
 dev = [
-    "maturin==1.12.5",
-    "pytest==9.0.2",
+    "maturin==1.13.1",
+    "pytest==9.0.3",
     "pytest-asyncio==1.3.0",
-    "granian==2.7.2",
+    "granian==2.7.3",
     "asgi-types==0.2.0",
     "trustme==1.2.1",
     "requests-toolbelt==1.0.0",
     "syrupy==5.1.0",
-    "ruff==0.15.4",
-    "mypy==1.19.1",
-    "packaging==26.0",
-    "pydantic==2.12.5",
-    "cryptography==46.0.5",
+    "ruff==0.15.11",
+    "mypy==1.20.1",
+    "packaging==26.1",
+    "pydantic==2.13.2",
+    "cryptography==46.0.7",
     # Compatibility checks with other libraries
     "dirty-equals==0.11",
-    "yarl==1.22.0",
+    "yarl==1.23.0",
     "multidict==6.7.1",
-    "starlette==0.52.1",
+    "starlette==1.0.0",
     "httpx==0.28.1",
     # Examples
     "docker==7.1.0", # For go-httpbin (python httpbin is not great)
-    "types-docker==7.1.0.20260109",
+    "types-docker==7.1.0.20260409",
     # Documentation
     "pdoc==16.0.0",
 ]

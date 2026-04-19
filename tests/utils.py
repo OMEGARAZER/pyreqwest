@@ -35,7 +35,7 @@ async def docker_container(
 
     async def container_host_port() -> int:
         container.reload()
-        host_port = container.ports.get(f"{port}/tcp", [{}])[0].get("HostPort")
+        host_port = (container.ports.get(f"{port}/tcp") or [{}])[0].get("HostPort")
         assert host_port
         return int(host_port)
 
