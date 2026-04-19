@@ -64,7 +64,7 @@ dev = [
 ]
 bench = [
     "urllib3==2.6.3",
-    "aiohttp==3.13.3",
+    "aiohttp==3.13.4",
     "rnet==2.4.2",
     "niquests==3.17.0",
     "ry==0.0.78",
