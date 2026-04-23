@@ -19,8 +19,7 @@ pub fn register_collections_abc<T: PyTypeInfo>(py: Python, base: &str) -> PyResu
         return Ok(()); // :NOCOV
     }
 
-    py.import("collections")?
-        .getattr("abc")?
+    py.import("collections.abc")?
         .getattr(base)?
         .call_method1(intern!(py, "register"), (PyType::new::<T>(py),))
         .map(|_| ())
